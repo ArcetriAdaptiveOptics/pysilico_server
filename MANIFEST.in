@@ -1,0 +1,3 @@
+recursive-include test *
+recursive-include pysilico_server/conf *
+recursive-include pysilico_server/calib *
