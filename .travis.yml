@@ -5,6 +5,7 @@ python:
   - "3.5"
   - "3.6"
 install: 
+  - pip install git+https://github.com/lbusoni/pymba
   - pip install .
   - pip install coveralls
 script:
