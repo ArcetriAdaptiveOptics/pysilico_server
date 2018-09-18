@@ -128,7 +128,7 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
         B= totalIntensity / (sz0 * sz1) / 2 * np.array(
             [1- dx, 1+ dx, 1- dy, 1+ dy])
 
-        res=np.linalg.lstsq(Amat, B.reshape((4, sz0 * sz1)), rcond=None)
+        res=np.linalg.lstsq(Amat, B.reshape((4, sz0 * sz1)), rcond=-1)
         pupils= res[0].reshape((4, sz0, sz1))
 
         if isinstance(wavefront, np.ma.MaskedArray):
