@@ -244,7 +244,6 @@ class AvtCamera(AbstractCamera):
             callback(self._lastValidFrame)
 
     def _frame_callback(self, camera, frame):
-        print("received frame %s" % frame)
         try:
             # self._logger.debug("Got frame %d at time %.3f" % (
             #    self._counter, frame.get_timestamp() /
