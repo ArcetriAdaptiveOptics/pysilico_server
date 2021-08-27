@@ -18,6 +18,7 @@ def withCamera():
     return wrapperFunc
 
 
+@unittest.skip
 class HwAvtCameraTest(unittest.TestCase):
 
     def setUp(self):
