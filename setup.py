@@ -89,7 +89,7 @@ setup(name=NAME,
       package_data={
           'pysilico_server': ['conf/pysilico_server.conf', 'calib/*'],
       },
-      install_requires=["plico>=0.18",
+      install_requires=["plico>=0.19",
                         "pysilico>=0.19",
                         "numpy",
                         "psutil",
