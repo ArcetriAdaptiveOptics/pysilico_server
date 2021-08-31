@@ -1,10 +1,14 @@
 import unittest
+
+try:
+    import vimba
+except Exception:
+    raise unittest.SkipTest(
+        "vimba not installed. Skipping all tests in avt_camera_test.py")
+
 import numpy as np
 from pysilico_server.devices.avtCamera import Vimba, AvtCamera
 from vimba.frame import PixelFormat
-
-
-__version__ = "$Id: avt_camera_test.py 311 2017-10-10 16:39:33Z pygo $"
 
 
 class MyVimbaStructureFrame():
@@ -14,6 +18,7 @@ class MyVimbaStructureFrame():
 
 
 class MyVimbaFrame(object):
+
     def __init__(self, h, w, dtype):
         self._h = h
         self._w = w

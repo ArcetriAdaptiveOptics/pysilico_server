@@ -1,5 +1,11 @@
 import unittest
 
+try:
+    import vimba
+except Exception:
+    raise unittest.SkipTest(
+        "vimba not installed. Skipping all tests in avt_camera_test.py")
+
 from vimba import Vimba, VimbaFeatureError
 from pysilico_server.devices.avtCamera import AvtCamera
 from time import sleep
@@ -7,12 +13,15 @@ import functools
 
 
 def withCamera():
+
     def wrapperFunc(f):
+
         @functools.wraps(f)
         def wrapper(self, *args, **kwds):
             with Vimba.get_instance():
                 with self._vimbacamera:
                     return f(self, *args, **kwds)
+
         return wrapper
 
     return wrapperFunc
@@ -83,5 +92,5 @@ class VimbaTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
