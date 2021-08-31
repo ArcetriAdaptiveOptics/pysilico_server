@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 import subprocess
 import shutil
 import unittest
@@ -23,10 +24,12 @@ from pysilico_server.devices.simulated_auxiliary_camera import \
     SimulatedAuxiliaryCamera
 
 
+@unittest.skipIf(sys.platform == "win32",
+                 "Integration test doesn't run on Windows. Fix it!")
 class IntegrationTest(unittest.TestCase):
 
     TEST_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                           "./tmp/")
+                            "./tmp/")
     LOG_DIR = os.path.join(TEST_DIR, "log")
     CONF_FILE = 'test/integration/conffiles/pysilico_server.conf'
     CALIB_FOLDER = 'test/integration/calib'
@@ -34,7 +37,7 @@ class IntegrationTest(unittest.TestCase):
     SERVER_LOG_PATH = os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
     BIN_DIR = os.path.join(TEST_DIR, "apps", "bin")
     SOURCE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                             "../..")
+                              "../..")
 
     def setUp(self):
         self._setUpBasicLogging()
@@ -168,7 +171,7 @@ class IntegrationTest(unittest.TestCase):
              SimulatedAuxiliaryCamera.SENSOR_W, 10))
         self.assertEqual(float, frame.dtype)
         self.assertNotEqual(0,
-                            np.std(frame[0, 0,:]))
+                            np.std(frame[0, 0, :]))
 
         counter2 = self.client1.getFutureFrames(1).counter()
         self.assertTrue(counter2 > counter)
