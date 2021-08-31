@@ -10,16 +10,14 @@ DESCRIPTION = 'AVT-Prosilica camera controller with PLICO'
 URL = 'https://github.com/lbusoni/pysilico_server'
 EMAIL = 'lorenzo.busoni@inaf.it'
 AUTHOR = 'Lorenzo Busoni'
-LICENSE= 'MIT'
-KEYWORDS= 'plico, Prosilica,  AVT, camera, laboratory, instrumentation control'
-
+LICENSE = 'MIT'
+KEYWORDS = 'plico, Prosilica,  AVT, camera, laboratory, instrumentation control'
 
 here = os.path.abspath(os.path.dirname(__file__))
 # Load the package's __version__.py module as a dictionary.
 about = {}
 with open(os.path.join(here, NAME.replace("-", "_"), '__version__.py')) as f:
     exec(f.read(), about)
-
 
 
 class UploadCommand(Command):
@@ -59,15 +57,12 @@ class UploadCommand(Command):
         sys.exit()
 
 
-
 setup(name=NAME,
       description=DESCRIPTION,
       version=about['__version__'],
       classifiers=['Development Status :: 4 - Beta',
                    'Operating System :: POSIX :: Linux',
-                   'Programming Language :: Python :: 2.7',
-                   'Programming Language :: Python :: 3.5',
-                   'Programming Language :: Python :: 3.6',
+                   'Programming Language :: Python :: 3',
                    ],
       long_description=open('README.md').read(),
       url=URL,
@@ -95,16 +90,11 @@ setup(name=NAME,
           'pysilico_server': ['conf/pysilico_server.conf', 'calib/*'],
       },
       install_requires=["plico>=0.15",
-                        "pysilico>=0.15",
+                        "pysilico>=0.18",
                         "numpy",
                         "psutil",
-                        "configparser",
                         "six",
-                        "appdirs",
-                        "pyfits",
-                        "futures",
                         "rebin",
-                       # "pymba",
                         ],
       include_package_data=True,
       test_suite='test',
