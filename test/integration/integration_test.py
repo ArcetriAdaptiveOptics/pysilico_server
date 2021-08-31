@@ -5,7 +5,7 @@ import shutil
 import unittest
 import logging
 import numpy as np
-from test.test_helper import TestHelper, Poller, MessageInFileProbe,\
+from test.test_helper import TestHelper, Poller, MessageInFileProbe, \
     ExecutionProbe
 from plico.utils.configuration import Configuration
 from plico.rpc.zmq_remote_procedure_call import ZmqRemoteProcedureCall
@@ -22,58 +22,50 @@ from pysilico.client.abstract_camera_client import SnapshotEntry
 from pysilico_server.devices.simulated_auxiliary_camera import \
     SimulatedAuxiliaryCamera
 
-__version__ = "$Id: integration_test.py 33 2018-01-27 15:03:11Z lbusoni $"
-
 
 class IntegrationTest(unittest.TestCase):
 
-    TEST_DIR= os.path.join(os.path.abspath(os.path.dirname(__file__)),
+    TEST_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                            "./tmp/")
-    LOG_DIR= os.path.join(TEST_DIR, "log")
-    CONF_FILE= 'test/integration/conffiles/pysilico_server.conf'
-    CALIB_FOLDER= 'test/integration/calib'
-    CONF_SECTION= Constants.PROCESS_MONITOR_CONFIG_SECTION
-    SERVER_LOG_PATH= os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
-    BIN_DIR= os.path.join(TEST_DIR, "apps", "bin")
-    SOURCE_DIR= os.path.join(os.path.abspath(os.path.dirname(__file__)),
+    LOG_DIR = os.path.join(TEST_DIR, "log")
+    CONF_FILE = 'test/integration/conffiles/pysilico_server.conf'
+    CALIB_FOLDER = 'test/integration/calib'
+    CONF_SECTION = Constants.PROCESS_MONITOR_CONFIG_SECTION
+    SERVER_LOG_PATH = os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
+    BIN_DIR = os.path.join(TEST_DIR, "apps", "bin")
+    SOURCE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                              "../..")
-
 
     def setUp(self):
         self._setUpBasicLogging()
-        self.server= None
-        self._wasSuccessful= False
+        self.server = None
+        self._wasSuccessful = False
 
         self._removeTestFolderIfItExists()
         self._makeTestDir()
-        self.configuration= Configuration()
+        self.configuration = Configuration()
         self.configuration.load(self.CONF_FILE)
-        self.rpc= ZmqRemoteProcedureCall()
+        self.rpc = ZmqRemoteProcedureCall()
 
-        calibrationRootDir= self.configuration.calibrationRootDir()
+        calibrationRootDir = self.configuration.calibrationRootDir()
         self._setUpCalibrationTempFolder(calibrationRootDir)
-
 
     def _setUpBasicLogging(self):
         logging.basicConfig(level=logging.DEBUG)
-        self._logger= Logger.of('Integration Test')
-
+        self._logger = Logger.of('Integration Test')
 
     def _makeTestDir(self):
         os.makedirs(self.TEST_DIR)
         os.makedirs(self.LOG_DIR)
         os.makedirs(self.BIN_DIR)
 
-
     def _setUpCalibrationTempFolder(self, calibTempFolder):
         shutil.copytree(self.CALIB_FOLDER,
                         calibTempFolder)
 
-
     def _removeTestFolderIfItExists(self):
         if os.path.exists(self.TEST_DIR):
             shutil.rmtree(self.TEST_DIR)
-
 
     def tearDown(self):
         TestHelper.dumpFileToStdout(self.SERVER_LOG_PATH)
@@ -84,19 +76,17 @@ class IntegrationTest(unittest.TestCase):
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
 
-
     def _createStarterScripts(self):
-        ssc= StarterScriptCreator()
+        ssc = StarterScriptCreator()
         ssc.setInstallationBinDir(self.BIN_DIR)
         ssc.setPythonPath(self.SOURCE_DIR)
         ssc.setConfigFileDestination(self.CONF_FILE)
         ssc.installExecutables()
 
-
     def _startProcesses(self):
-        psh= ProcessStartUpHelper()
-        serverLog= open(os.path.join(self.LOG_DIR, "server.out"), "wb")
-        self.server= subprocess.Popen(
+        psh = ProcessStartUpHelper()
+        serverLog = open(os.path.join(self.LOG_DIR, "server.out"), "wb")
+        self.server = subprocess.Popen(
             [psh.processProcessMonitorStartUpScriptPath(),
              self.CONF_FILE,
              self.CONF_SECTION],
@@ -104,35 +94,29 @@ class IntegrationTest(unittest.TestCase):
         Poller(5).check(MessageInFileProbe(
             ProcessMonitorRunner.RUNNING_MESSAGE, self.SERVER_LOG_PATH))
 
-
     def _testProcessesActuallyStarted(self):
-        controllerLogFile= os.path.join(
+        controllerLogFile = os.path.join(
             self.LOG_DIR,
             '%s.log' % Constants.SERVER_1_CONFIG_SECTION)
         Poller(5).check(MessageInFileProbe(
             Runner.RUNNING_MESSAGE, controllerLogFile))
-        controller2LogFile= os.path.join(
+        controller2LogFile = os.path.join(
             self.LOG_DIR,
             '%s.log' % Constants.SERVER_2_CONFIG_SECTION)
         Poller(5).check(MessageInFileProbe(
             Runner.RUNNING_MESSAGE, controller2LogFile))
 
-
-
     def _buildClients(self):
-        ports1= ZmqPorts.fromConfiguration(
+        ports1 = ZmqPorts.fromConfiguration(
             self.configuration,
             Constants.SERVER_1_CONFIG_SECTION)
-        self.client1= CameraClient(
+        self.client1 = CameraClient(
             self.rpc, Sockets(ports1, self.rpc))
-        ports2= ZmqPorts.fromConfiguration(
+        ports2 = ZmqPorts.fromConfiguration(
             self.configuration,
             Constants.SERVER_2_CONFIG_SECTION)
-        self.client2= CameraClient(
+        self.client2 = CameraClient(
             self.rpc, Sockets(ports2, self.rpc))
-
-
-
 
     def _checkBackdoor(self):
         self.client1.execute(
@@ -146,53 +130,48 @@ class IntegrationTest(unittest.TestCase):
             "42",
             self.client1.eval("self._foobar"))
 
-
     def _testGetSnapshot(self):
-        snapshot= self.client1.getSnapshot('aa')
-        snKey= 'aa.%s' % SnapshotEntry.CAMERA_NAME
+        snapshot = self.client1.getSnapshot('aa')
+        snKey = 'aa.%s' % SnapshotEntry.CAMERA_NAME
         self.assertEqual('Simulated Aux Camera', snapshot[snKey])
 
-
     def _testServerInfo(self):
-        serverInfo= self.client1.serverInfo()
+        serverInfo = self.client1.serverInfo()
         self.assertEqual('AVT 1 server',
                          serverInfo.name)
         self.assertEqual('localhost', serverInfo.hostname)
 
-
     def _testCameraGetFrame(self):
         self._applyCameraBinning(self.client1, 1)
         cameraFrame = self.client1.getFutureFrames(1)
-        frame= cameraFrame.toNumpyArray()
-        counter= cameraFrame.counter()
+        frame = cameraFrame.toNumpyArray()
+        counter = cameraFrame.counter()
 
         self.assertEqual(frame.shape,
                          (SimulatedAuxiliaryCamera.SENSOR_H,
                           SimulatedAuxiliaryCamera.SENSOR_W))
 
-        counter2= self.client1.getFutureFrames(1).counter()
-        counter3= self.client1.getFutureFrames(1).counter()
+        counter2 = self.client1.getFutureFrames(1).counter()
+        counter3 = self.client1.getFutureFrames(1).counter()
         self.assertTrue(counter2 > counter)
         self.assertTrue(counter3 > counter2)
-
 
     def _testCameraGetFutureFrames(self):
         self._applyCameraBinning(self.client1, 1)
         cameraFrame = self.client1.getFutureFrames(10)
-        frame= cameraFrame.toNumpyArray()
-        counter= cameraFrame.counter()
+        frame = cameraFrame.toNumpyArray()
+        counter = cameraFrame.counter()
 
         self.assertEqual(
             frame.shape,
             (SimulatedAuxiliaryCamera.SENSOR_H,
              SimulatedAuxiliaryCamera.SENSOR_W, 10))
-        self.assertEqual(np.float, frame.dtype)
+        self.assertEqual(float, frame.dtype)
         self.assertNotEqual(0,
-                            np.std(frame[0, 0, :]))
+                            np.std(frame[0, 0,:]))
 
-        counter2= self.client1.getFutureFrames(1).counter()
+        counter2 = self.client1.getFutureFrames(1).counter()
         self.assertTrue(counter2 > counter)
-
 
     def _testCameraModifyExposureTime(self):
         self.client1.setExposureTime(3.5)
@@ -203,7 +182,6 @@ class IntegrationTest(unittest.TestCase):
         Poller(3).check(ExecutionProbe(
             lambda: self.assertEqual(0.75,
                                      self.client1.exposureTime())))
-
 
     def _testCameraBinning(self):
         self._applyCameraBinning(self.client1, 1)
@@ -216,30 +194,27 @@ class IntegrationTest(unittest.TestCase):
         Poller(3).check(ExecutionProbe(
             lambda: self.assertEqual(4,
                                      self.client1.getBinning())))
-        self.assertEqual(shape1[0]/ 4, shape4[0])
-        self.assertEqual(shape1[1]/ 4, shape4[1])
+        self.assertEqual(shape1[0] / 4, shape4[0])
+        self.assertEqual(shape1[1] / 4, shape4[1])
         self._applyCameraBinning(self.client1, 1)
-
 
     def _applyCameraBinning(self, cameraClient, binning):
         cameraClient.setBinning(binning)
         # NOTNEEDED _trashLast= cameraClient.getFutureFrames(1)
 
-
     def _testFrameForDisplayIsResizedUnlessBinned(self):
         self._applyCameraBinning(self.client1, 1)
-        disp=self.client1.getFrameForDisplay().toNumpyArray().shape
-        full=self.client1.getFutureFrames(1).toNumpyArray().shape
-        self.assertTrue(full[0]>disp[0])
+        disp = self.client1.getFrameForDisplay().toNumpyArray().shape
+        full = self.client1.getFutureFrames(1).toNumpyArray().shape
+        self.assertTrue(full[0] > disp[0])
 
         self._applyCameraBinning(self.client1, 8)
-        disp=self.client1.getFrameForDisplay().toNumpyArray().shape
-        full=self.client1.getFutureFrames(1).toNumpyArray().shape
+        disp = self.client1.getFrameForDisplay().toNumpyArray().shape
+        full = self.client1.getFutureFrames(1).toNumpyArray().shape
         Poller(3).check(ExecutionProbe(
             lambda: self.assertEqual(
                 full,
                 self.client1.getFrameForDisplay().toNumpyArray().shape)))
-
 
     def testMain(self):
         self._buildClients()
@@ -254,7 +229,7 @@ class IntegrationTest(unittest.TestCase):
         self._testGetSnapshot()
         self._testServerInfo()
         self._checkBackdoor()
-        self._wasSuccessful= True
+        self._wasSuccessful = True
 
 
 if __name__ == "__main__":
