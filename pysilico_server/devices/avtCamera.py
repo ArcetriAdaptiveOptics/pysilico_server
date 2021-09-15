@@ -15,23 +15,29 @@ from vimba.error import VimbaFeatureError
 
 
 def withVimba():
+
     def wrapperFunc(f):
+
         @functools.wraps(f)
         def wrapper(self, *args, **kwds):
             with Vimba.get_instance():
                 return f(self, *args, **kwds)
+
         return wrapper
 
     return wrapperFunc
 
 
 def withCamera():
+
     def wrapperFunc(f):
+
         @functools.wraps(f)
         @withVimba()
         def wrapper(self, *args, **kwds):
             with self._camera:
                 return f(self, *args, **kwds)
+
         return wrapper
 
     return wrapperFunc
@@ -86,7 +92,7 @@ class AvtCamera(AbstractCamera):
     @withCamera()
     def _createFrames(self):
         # create new frames for the camera
-        self._frame = self._camera.getFrame()    # creates a frame
+        self._frame = self._camera.getFrame()  # creates a frame
         self._frame.announceFrame()
 
     def _isBinningAvailable(self):
@@ -216,6 +222,8 @@ class AvtCamera(AbstractCamera):
     @withCamera()
     def setExposureTime(self, exposureTimeInMilliSeconds):
         self._camera.ExposureTimeAbs.set(exposureTimeInMilliSeconds * 1000.)
+        self._logger.notice('Exposure time set to %g ms' % (
+            exposureTimeInMilliSeconds))
 
     @override
     @synchronized("_mutex")
@@ -234,7 +242,10 @@ class AvtCamera(AbstractCamera):
     @withCamera()
     def setFrameRate(self, frameRate):
         self._camera.AcquisitionFrameRateAbs.set(np.minimum(
-            frameRate, self._camera.AcquisitionFrameRateLimit.get()))
+            frameRate,
+            self._maximum_frame_rate()))
+        self._logger.notice('Frame rate set to %g Hz - (requested %g Hz)'
+                            % (self.getFrameRate(), frameRate))
 
     def readFrame(self, timeoutMilliSec=2000):
         pass
@@ -276,6 +287,10 @@ class AvtCamera(AbstractCamera):
         except (AttributeError, VimbaFeatureError):
             pass
 
+    def _maximum_frame_rate(self):
+        aLittleBitSlower = 0.01
+        return self._camera.AcquisitionFrameRateLimit.get() - aLittleBitSlower
+
     @withCamera()
     def startAcquisition(self):
         self._adjust_packet_size()
@@ -283,7 +298,7 @@ class AvtCamera(AbstractCamera):
         self._camera.TriggerSource.set('FixedRate')
         self._camera.AcquisitionMode.set('Continuous')
         self._camera.AcquisitionFrameRateAbs.set(
-            self._camera.AcquisitionFrameRateLimit.get())
+            self._maximum_frame_rate())
         self._camera.SyncOutSelector.set('SyncOut1')
         self._camera.SyncOutSource.set('Exposing')
         self._camera.start_streaming(
