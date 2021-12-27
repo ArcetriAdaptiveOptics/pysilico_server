@@ -5,10 +5,13 @@
 name: Python package
 
 on:
-  push:
-    branches: [ master ]
   pull_request:
-    branches: [ master ]
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "12 1 * * *"
+
 
 jobs:
   build:
