@@ -130,7 +130,8 @@ class AvtCamera(AbstractCamera):
         self._camera.Width.set(self._camera.SensorWidth.get() // self._binning)
         self._camera.set_pixel_format(PixelFormat.Mono12)
         self._camera.GVSPPacketSize.set(1500)
-        self._timeStampTickFrequency = self._camera.GevTimestampTickFrequency.get()
+        # Not all cameras have this
+        #self._timeStampTickFrequency = self._camera.GevTimestampTickFrequency.get()
         self._logger.notice(
             'Binning set to %d. Frame shape (w,h): (%d, %d) '
             'Left bottom pixel (%d, %d)'
@@ -157,14 +158,22 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def setStreamBytesPerSecond(self, streamBytesPerSecond):
-        self._camera.StreamBytesPerSecond.set(streamBytesPerSecond)
-        self._logger.notice('Camera data rate set to %4.1f MB/s'
-                            % (streamBytesPerSecond / 1e6))
+        try:
+            self._camera.StreamBytesPerSecond.set(streamBytesPerSecond)
+            self._logger.notice('Camera data rate set to %4.1f MB/s'
+                                % (streamBytesPerSecond / 1e6))
+        except AttributeError:
+            # Some cameras do not have this attribute
+            pass
 
     @synchronized("_mutex")
     @withCamera()
     def getStreamBytesPerSecond(self):
-        return self._camera.StreamBytesPerSecond.get()
+        try:
+            return self._camera.StreamBytesPerSecond.get()
+        except AttributeError:
+            # Some cameras do not have this attribute
+            return 0
 
     @override
     def setBinning(self, binning):
@@ -221,7 +230,11 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def setExposureTime(self, exposureTimeInMilliSeconds):
-        self._camera.ExposureTimeAbs.set(exposureTimeInMilliSeconds * 1000.)
+        try:
+            self._camera.ExposureTimeAbs.set(exposureTimeInMilliSeconds * 1000.)
+        except AttributeError:
+            # Some cameras use ExposureTime, others ExposureTimeAbs. We try both.
+            self._camera.ExposureTime.set(exposureTimeInMilliSeconds * 1000.)
         self._logger.notice('Exposure time set to %g ms' % (
             exposureTimeInMilliSeconds))
 
@@ -229,21 +242,35 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def exposureTime(self):
-        return self._camera.ExposureTimeAbs.get() / 1000.
+        try:
+            return self._camera.ExposureTimeAbs.get() / 1000.
+        except AttributeError:
+            # Some cameras use ExposureTime, others ExposureTimeAbs. We try both.
+            return self._camera.ExposureTime.get() / 1000.
 
     @override
     @synchronized("_mutex")
     @withCamera()
     def getFrameRate(self):
-        return self._camera.AcquisitionFrameRateAbs.get()
+        try:
+            return self._camera.AcquisitionFrameRateAbs.get()
+        except AttributeError:
+            # Some cameras use AcquisitionFrameRate, others AcquisitionFrameRateAbs. We try both.
+            return self._camera.AcquisitionFrameRate.get()
 
     @override
     @synchronized("_mutex")
     @withCamera()
     def setFrameRate(self, frameRate):
-        self._camera.AcquisitionFrameRateAbs.set(np.minimum(
-            frameRate,
-            self._maximum_frame_rate()))
+        try:
+            self._camera.AcquisitionFrameRateAbs.set(np.minimum(
+                frameRate,
+                self._maximum_frame_rate()))
+        except AttributeError:
+            # Some cameras use AcquisitionFrameRate, others AcquisitionFrameRateAbs. We try both.
+            self._camera.AcquisitionFrameRate.set(np.minimum(
+                frameRate,
+                self._maximum_frame_rate()))
         self._logger.notice('Frame rate set to %g Hz - (requested %g Hz)'
                             % (self.getFrameRate(), frameRate))
 
@@ -297,10 +324,12 @@ class AvtCamera(AbstractCamera):
         self._camera.TriggerSelector.set('FrameStart')
         self._camera.TriggerSource.set('FixedRate')
         self._camera.AcquisitionMode.set('Continuous')
-        self._camera.AcquisitionFrameRateAbs.set(
-            self._maximum_frame_rate())
-        self._camera.SyncOutSelector.set('SyncOut1')
-        self._camera.SyncOutSource.set('Exposing')
+        self.setFrameRate(self._maximum_frame_rate())
+        try:
+            self._camera.SyncOutSelector.set('SyncOut1')
+            self._camera.SyncOutSource.set('Exposing')
+        except AttributeError:
+            pass
         self._camera.start_streaming(
             handler=self._frame_callback, buffer_count=10)
         self._logger.notice('Continuous acquisition started')
