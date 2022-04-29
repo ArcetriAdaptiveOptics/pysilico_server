@@ -89,11 +89,13 @@ class Runner(BaseRunner):
 
 
 
-    def _spawnController(self, name):
+    def _spawnController(self, name, section):
         if self._binFolder:
             cmd= [os.path.join(self._binFolder, name)]
         else:
             cmd= [name]
+        cmd += [self._configuration._filename, section]
+        print('Spawning: ',cmd)
         self._logger.notice("MirrorController cmd is %s" % cmd)
         mirrorController= subprocess.Popen(cmd)
         self._processes.append(mirrorController)
@@ -105,11 +107,9 @@ class Runner(BaseRunner):
         self._setSignalIntHandler()
         self._logger.notice("Creating controller processes")
         self._determineInstalledBinaryDir()
-        self._controller1= self._spawnController(
-            Constants.SERVER_1_PROCESS_NAME)
-        self._controller2= self._spawnController(
-            Constants.SERVER_2_PROCESS_NAME)
-
+        sections = self._configuration.numberedSectionList(prefix='camera')
+        for section in sections:
+            self._spawnController(Constants.SERVER_PROCESS_NAME, section)
 
     def _runLoop(self):
         self._logRunning()

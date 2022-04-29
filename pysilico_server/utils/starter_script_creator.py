@@ -13,7 +13,7 @@ class StarterScriptCreator(StarterScriptCreatorBase):
         StarterScriptCreatorBase.__init__(self)
 
 
-    def installExecutables(self):
+    def installExecutables(self, numControllers):
         psh= ProcessStartUpHelper()
 
         self._createAStarterScript(
@@ -21,18 +21,12 @@ class StarterScriptCreator(StarterScriptCreatorBase):
             psh.processProcessMonitorStartUpScriptPath(),
             Constants.PROCESS_MONITOR_CONFIG_SECTION
         )
-        self._createAStarterScript(
-            os.path.join(self._binDir,
-                         Constants.SERVER_1_PROCESS_NAME),
-            psh.deformableMirrorStartUpScriptPath(),
-            Constants.SERVER_1_CONFIG_SECTION
-        )
-        self._createAStarterScript(
-            os.path.join(self._binDir,
-                         Constants.SERVER_2_PROCESS_NAME),
-            psh.deformableMirrorStartUpScriptPath(),
-            Constants.SERVER_2_CONFIG_SECTION
-        )
+        for n in range(1, numControllers+1):
+            self._createAStarterScript(
+                os.path.join(self._binDir, Constants.SERVER_PROCESS_NAME),
+                psh.cameraControllerStartUpScriptPath(),
+                '$2'  # Section name is a bash parameter
+            )
         self._createAStarterScript(
             os.path.join(self._binDir, Constants.KILL_ALL_PROCESS_NAME),
             psh.killAllProcessesStartUpScriptPath(),

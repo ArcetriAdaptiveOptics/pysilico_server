@@ -9,7 +9,7 @@ class ProcessStartUpHelper(object):
         self._moduleRoot= 'pysilico_server'
 
 
-    def deformableMirrorStartUpScriptPath(self):
+    def cameraControllerStartUpScriptPath(self):
         return os.path.join(self._moduleRoot,
                             'camera_controller',
                             'pysilico_run_camera_controller.py')

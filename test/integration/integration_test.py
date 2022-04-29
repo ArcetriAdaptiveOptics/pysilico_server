@@ -84,7 +84,8 @@ class IntegrationTest(unittest.TestCase):
         ssc.setInstallationBinDir(self.BIN_DIR)
         ssc.setPythonPath(self.SOURCE_DIR)
         ssc.setConfigFileDestination(self.CONF_FILE)
-        ssc.installExecutables()
+        numCameras = len(self.configuration.numberedSectionList(Constants.SERVER_CONFIG_SECTION_PREFIX))
+        ssc.installExecutables(numCameras)
 
     def _startProcesses(self):
         psh = ProcessStartUpHelper()
@@ -92,34 +93,44 @@ class IntegrationTest(unittest.TestCase):
         self.server = subprocess.Popen(
             [psh.processProcessMonitorStartUpScriptPath(),
              self.CONF_FILE,
-             self.CONF_SECTION],
-            stdout=serverLog, stderr=serverLog)
+             self.CONF_SECTION])
+           # stdout=serverLog, stderr=serverLog)
         Poller(5).check(MessageInFileProbe(
             ProcessMonitorRunner.RUNNING_MESSAGE, self.SERVER_LOG_PATH))
 
     def _testProcessesActuallyStarted(self):
         controllerLogFile = os.path.join(
             self.LOG_DIR,
-            '%s.log' % Constants.SERVER_1_CONFIG_SECTION)
+            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
         Poller(5).check(MessageInFileProbe(
             Runner.RUNNING_MESSAGE, controllerLogFile))
         controller2LogFile = os.path.join(
             self.LOG_DIR,
-            '%s.log' % Constants.SERVER_2_CONFIG_SECTION)
+            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
         Poller(5).check(MessageInFileProbe(
             Runner.RUNNING_MESSAGE, controller2LogFile))
+        controller3LogFile = os.path.join(
+            self.LOG_DIR,
+            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
+        Poller(5).check(MessageInFileProbe(
+            Runner.RUNNING_MESSAGE, controller3LogFile))
 
     def _buildClients(self):
         ports1 = ZmqPorts.fromConfiguration(
             self.configuration,
-            Constants.SERVER_1_CONFIG_SECTION)
+            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
         self.client1 = CameraClient(
             self.rpc, Sockets(ports1, self.rpc))
         ports2 = ZmqPorts.fromConfiguration(
             self.configuration,
-            Constants.SERVER_2_CONFIG_SECTION)
+            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
         self.client2 = CameraClient(
             self.rpc, Sockets(ports2, self.rpc))
+        ports3 = ZmqPorts.fromConfiguration(
+            self.configuration,
+            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
+        self.client3 = CameraClient(
+            self.rpc, Sockets(ports3, self.rpc))
 
     def _checkBackdoor(self):
         self.client1.execute(

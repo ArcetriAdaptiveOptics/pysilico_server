@@ -79,8 +79,7 @@ setup(name=NAME,
                 ],
       entry_points={
           'console_scripts': [
-              'pysilico_server_1=pysilico_server.scripts.pysilico_camera_controller_1:main',
-              'pysilico_server_2=pysilico_server.scripts.pysilico_camera_controller_2:main',
+              'pysilico_server=pysilico_server.scripts.pysilico_camera_controller:main',
               'pysilico_kill_all=pysilico_server.scripts.pysilico_kill_processes:main',
               'pysilico_start=pysilico_server.scripts.pysilico_process_monitor:main',
               'pysilico_stop=pysilico_server.scripts.pysilico_stop:main',
