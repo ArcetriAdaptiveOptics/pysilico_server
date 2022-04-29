@@ -7,7 +7,7 @@ __version__ = "$Id: tipico_mirror_controller_1.py 31 2018-01-27 10:47:29Z lbuson
 
 def main():
     runner= Runner()
-    sys.exit(runner.start(argv))
+    sys.exit(runner.start(sys.argv))
 
 
 if __name__ == '__main__':

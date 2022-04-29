@@ -13,15 +13,29 @@ from pysilico_server.camera_controller.camera_controller import \
 from plico.rpc.zmq_ports import ZmqPorts
 import functools
 
+class CameraException(Exception):
+    '''Custom exception class in order to avoid
+       exposing the Vimba namespace outside the context wrapper'''
+    pass
+
 
 def ContextWrapper():
     def wrapperFunc(f):
         @functools.wraps(f)
         def wrapper_vimba(self, *args, **kwds):
-            from vimba import Vimba
-            with Vimba.get_instance():
-                with self._vimbacamera:
-                    return f(self, *args, **kwds)
+            import vimba
+            # First with ... starts the Vimba API.
+            # If a camera has been setup, the second with...
+            # will run the method into that camera context.
+            try:
+                with vimba.Vimba.get_instance():
+                    if hasattr(self, '_vimbacamera'):
+                       with self._vimbacamera:
+                            return f(self, *args, **kwds)
+                    else:
+                        return f(self, *args, **kwds)
+            except vimba.error.VimbaCameraError as e:
+                raise CameraException(e.__str__())
 
         def wrapper_generic(self, *args, **kwds):
             return f(self, *args, **kwds)
@@ -43,6 +57,7 @@ class Runner(BaseRunner):
     def __init__(self):
         BaseRunner.__init__(self)
         self._use_vimba_wrapper = False
+        self._isTerminated = False
 
     def _createCameraDevice(self):
         cameraDeviceSection = self.configuration.getValue(
@@ -53,6 +68,7 @@ class Runner(BaseRunner):
         elif cameraModel == 'simulatedAuxiliaryCamera':
             self._createSimulatedAuxiliaryCamera(cameraDeviceSection)
         elif cameraModel == 'avt':
+            self._use_vimba_wrapper = True
             self._createAvtCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
@@ -67,6 +83,7 @@ class Runner(BaseRunner):
         self._camera = SimulatedAuxiliaryCamera(cameraName)
         self._setBinning(cameraDeviceSection)
 
+    @ContextWrapper()
     def _createAvtCamera(self, cameraDeviceSection):
         from pysilico_server.devices.avtCamera import AvtCamera
         from vimba import Vimba
@@ -80,7 +97,6 @@ class Runner(BaseRunner):
         self._camera = AvtCamera(self._vimbacamera, cameraName)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
         self._setBinning(cameraDeviceSection)
-        self._use_vimba_wrapper = True
 
     def _setBinning(self, cameraDeviceSection):
         try:
@@ -114,6 +130,9 @@ class Runner(BaseRunner):
         self._displaySocket = self.rpc().publisherSocket(
             self._zmqPorts.SERVER_DISPLAY_PORT, hwm=1)
 
+    @ContextWrapper()
+    def _createDevice(self):
+
         self._createCameraDevice()
         # self._camera.startAcquisition()
 
@@ -142,9 +161,23 @@ class Runner(BaseRunner):
     @override
     def run(self):
         self._setUp()
-        self._runLoop()
+        while not self._isTerminated:
+            try:
+                self._createDevice()
+                self._runLoop()
+            except CameraException as e:
+                # Camera unreachable or other errors
+                # Wait a little bit and try to reconnect
+                print(e)
+                time.sleep(1)
+            except Exception as e:
+                print('Unhandled exception: '+str(e))
+                self._isTerminated = True
         return os.EX_OK
 
     @override
     def terminate(self, signal, frame):
-        self._controller.terminate()
+        self._isTerminated = True
+        if hasattr(self, '_controller'):
+            self._controller.terminate()
+

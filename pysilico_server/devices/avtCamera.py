@@ -67,11 +67,10 @@ class AvtCamera(AbstractCamera):
     def _initialize(self):
 
         # Limit data rate from camera
-        #         try:
-        #             streamBytesPerSecond = conf().getint('camera', 'streamBytesPerSecond')
-        #         except:
-        #             streamBytesPerSecond = 100000000
-        streamBytesPerSecond = 10000000
+        try:
+            streamBytesPerSecond = conf().getint('camera', 'streamBytesPerSecond')
+        except:
+            streamBytesPerSecond = 10000000
         self.setStreamBytesPerSecond(streamBytesPerSecond)
 
         self._resetBinningAndOffset()
@@ -160,11 +159,16 @@ class AvtCamera(AbstractCamera):
     def setStreamBytesPerSecond(self, streamBytesPerSecond):
         try:
             self._camera.StreamBytesPerSecond.set(streamBytesPerSecond)
-            self._logger.notice('Camera data rate set to %4.1f MB/s'
-                                % (streamBytesPerSecond / 1e6))
         except AttributeError:
-            # Some cameras do not have this attribute
-            pass
+            try:
+                # Some cameras use a different name
+                self._camera.DeviceLinkThroughputLimit.set(streamBytesPerSecond)
+            except AttributeError:
+                # If we can't set it, return silently and
+                # avoid the logging notice
+                return
+        self._logger.notice('Camera data rate set to %4.1f MB/s'
+                             % (streamBytesPerSecond / 1e6))
 
     @synchronized("_mutex")
     @withCamera()
@@ -385,6 +389,8 @@ class AvtCamera(AbstractCamera):
     @withCamera()
     def deinitialize(self):
         try:
-            self._camera.closeCamera()
-        except Exception:
-            self._logger.warn('Failed to close camera')
+            self.stopAcquisition()
+            # There is no closeCamera() method apparently
+            # self._camera.closeCamera()
+        except Exception as e:
+            self._logger.warn('Failed to close camera:'+str(e))
