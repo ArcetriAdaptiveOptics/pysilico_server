@@ -6,7 +6,7 @@ from pysilico_server.devices.simulated_camera import \
 from pysilico_server.devices.simulated_auxiliary_camera import \
     SimulatedAuxiliaryCamera
 from plico.utils.logger import Logger
-from plico.utils.control_loop import FaultTolerantControlLoop
+from plico.utils.control_loop import IntolerantControlLoop
 from plico.utils.decorator import override
 from pysilico_server.camera_controller.camera_controller import \
     CameraController
@@ -34,7 +34,9 @@ def ContextWrapper():
                             return f(self, *args, **kwds)
                     else:
                         return f(self, *args, **kwds)
-            except vimba.error.VimbaCameraError as e:
+            except (vimba.error.VimbaCameraError,
+                    vimba.c_binding.vimba_common.VimbaCError,
+                    vimba.error.VimbaFeatureError) as e:
                 raise CameraException(e.__str__())
 
         def wrapper_generic(self, *args, **kwds):
@@ -151,7 +153,7 @@ class Runner(BaseRunner):
         self._logRunning()
 
         self._camera.startAcquisition()
-        FaultTolerantControlLoop(
+        IntolerantControlLoop(
             self._controller,
             Logger.of("Camera Controller control loop"),
             time,

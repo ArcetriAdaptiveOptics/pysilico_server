@@ -51,6 +51,7 @@ class CameraController(Stepable,
         self._camera.registerCallback(self._publishFrame)
         self._darkFrame = None
         self._mutexDarkFrame = threading.RLock()
+        self._last_time = int(time.time())
 
     @override
     def step(self):
@@ -61,6 +62,13 @@ class CameraController(Stepable,
                 'Stepping at %5.2f Hz. FrameCounter %d' % (
                     self._timekeep.rate, self._camera.getFrameCounter()))
         self._stepCounter += 1
+        # Ping the camera every now and then to verify that
+        # it is still reachable. In case, it will throw an exception
+        # that will trigger the reconnection loop.
+        now = int(time.time())
+        if self._last_time != now:
+            self._last_time = now
+            _ = self._camera.exposureTime()
 
     def getStepCounter(self):
         return self._stepCounter
