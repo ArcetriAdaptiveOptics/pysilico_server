@@ -171,6 +171,8 @@ class Runner(BaseRunner):
                 # Camera unreachable or other errors
                 # Wait a little bit and try to reconnect
                 print(e)
+                if hasattr(self, '_vimbacamera'):
+                    delattr(self, '_vimbacamera')
                 time.sleep(1)
             except Exception as e:
                 print('Unhandled exception: '+str(e))
