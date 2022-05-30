@@ -66,12 +66,8 @@ class AvtCamera(AbstractCamera):
     @withVimba()
     def _initialize(self):
 
-        # Limit data rate from camera
-        try:
-            streamBytesPerSecond = conf().getint('camera', 'streamBytesPerSecond')
-        except:
-            streamBytesPerSecond = 10000000
-        self.setStreamBytesPerSecond(streamBytesPerSecond)
+        # Limit data rate from camera as a default
+        self.setStreamBytesPerSecond(10000000)
 
         self._resetBinningAndOffset()
 
