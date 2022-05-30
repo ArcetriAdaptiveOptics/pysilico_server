@@ -95,7 +95,6 @@ class Runner(BaseRunner):
         else:
             cmd= [name]
         cmd += [self._configuration._filename, section]
-        print('Spawning: ',cmd)
         self._logger.notice("MirrorController cmd is %s" % cmd)
         mirrorController= subprocess.Popen(cmd)
         self._processes.append(mirrorController)

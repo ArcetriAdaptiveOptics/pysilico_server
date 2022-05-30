@@ -89,12 +89,10 @@ class IntegrationTest(unittest.TestCase):
 
     def _startProcesses(self):
         psh = ProcessStartUpHelper()
-        serverLog = open(os.path.join(self.LOG_DIR, "server.out"), "wb")
         self.server = subprocess.Popen(
             [psh.processProcessMonitorStartUpScriptPath(),
              self.CONF_FILE,
              self.CONF_SECTION])
-           # stdout=serverLog, stderr=serverLog)
         Poller(5).check(MessageInFileProbe(
             ProcessMonitorRunner.RUNNING_MESSAGE, self.SERVER_LOG_PATH))
 
@@ -229,6 +227,7 @@ class IntegrationTest(unittest.TestCase):
             lambda: self.assertEqual(
                 full,
                 self.client1.getFrameForDisplay().toNumpyArray().shape)))
+
 
     def testMain(self):
         self._buildClients()
