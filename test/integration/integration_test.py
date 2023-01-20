@@ -34,7 +34,14 @@ class IntegrationTest(unittest.TestCase):
     CONF_FILE = 'test/integration/conffiles/pysilico_server.conf'
     CALIB_FOLDER = 'test/integration/calib'
     CONF_SECTION = Constants.PROCESS_MONITOR_CONFIG_SECTION
-    SERVER_LOG_PATH = os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
+    PROCESS_MONITOR_LOG_PATH = os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
+    SERVER_1_LOG_PATH = os.path.join(
+        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
+    SERVER_2_LOG_PATH = os.path.join(
+        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
+    SERVER_3_LOG_PATH = os.path.join(
+        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
+
     BIN_DIR = os.path.join(TEST_DIR, "apps", "bin")
     SOURCE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                               "../..")
@@ -71,7 +78,10 @@ class IntegrationTest(unittest.TestCase):
             shutil.rmtree(self.TEST_DIR)
 
     def tearDown(self):
-        TestHelper.dumpFileToStdout(self.SERVER_LOG_PATH)
+        TestHelper.dumpFileToStdout(self.PROCESS_MONITOR_LOG_PATH)
+        TestHelper.dumpFileToStdout(self.SERVER_1_LOG_PATH)
+        TestHelper.dumpFileToStdout(self.SERVER_2_LOG_PATH)
+        TestHelper.dumpFileToStdout(self.SERVER_3_LOG_PATH)
 
         if self.server is not None:
             TestHelper.terminateSubprocess(self.server)
@@ -84,7 +94,8 @@ class IntegrationTest(unittest.TestCase):
         ssc.setInstallationBinDir(self.BIN_DIR)
         ssc.setPythonPath(self.SOURCE_DIR)
         ssc.setConfigFileDestination(self.CONF_FILE)
-        numCameras = len(self.configuration.numberedSectionList(Constants.SERVER_CONFIG_SECTION_PREFIX))
+        numCameras = len(self.configuration.numberedSectionList(
+            Constants.SERVER_CONFIG_SECTION_PREFIX))
         ssc.installExecutables(numCameras)
 
     def _startProcesses(self):
@@ -94,24 +105,15 @@ class IntegrationTest(unittest.TestCase):
              self.CONF_FILE,
              self.CONF_SECTION])
         Poller(5).check(MessageInFileProbe(
-            ProcessMonitorRunner.RUNNING_MESSAGE, self.SERVER_LOG_PATH))
+            ProcessMonitorRunner.RUNNING_MESSAGE, self.PROCESS_MONITOR_LOG_PATH))
 
     def _testProcessesActuallyStarted(self):
-        controllerLogFile = os.path.join(
-            self.LOG_DIR,
-            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, controllerLogFile))
-        controller2LogFile = os.path.join(
-            self.LOG_DIR,
-            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
+            Runner.RUNNING_MESSAGE, self.SERVER_1_LOG_PATH))
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, controller2LogFile))
-        controller3LogFile = os.path.join(
-            self.LOG_DIR,
-            '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
+            Runner.RUNNING_MESSAGE, self.SERVER_2_LOG_PATH))
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, controller3LogFile))
+            Runner.RUNNING_MESSAGE, self.SERVER_3_LOG_PATH))
 
     def _buildClients(self):
         ports1 = ZmqPorts.fromConfiguration(
@@ -227,7 +229,6 @@ class IntegrationTest(unittest.TestCase):
             lambda: self.assertEqual(
                 full,
                 self.client1.getFrameForDisplay().toNumpyArray().shape)))
-
 
     def testMain(self):
         self._buildClients()
