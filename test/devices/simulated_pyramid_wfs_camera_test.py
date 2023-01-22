@@ -7,8 +7,6 @@ from plico.utils.logger import Logger
 from pysilico_server.devices.simulated_camera import \
     SimulatedPyramidWfsCamera
 
-__version__ = "$Id: simulated_camera_test.py 271 2017-04-28 16:49:02Z lbusoni $"
-
 
 class SimulatedPyramidWfsCameraTest(unittest.TestCase):
 
@@ -57,13 +55,13 @@ class SimulatedPyramidWfsCameraTest(unittest.TestCase):
         self._camera.setNoiseInCount(0)
         self._camera.setExposureTime(1.0)
         cp = 0.5 * np.array([self._camera.SENSOR_H,
-                           self._camera.SENSOR_W])
+                             self._camera.SENSOR_W])
         d = 0.1 * self._camera.SENSOR_H
         centers = np.zeros((4, 2))
-        centers[0,:] = [cp[0] - d, cp[1] - d]
-        centers[1,:] = [cp[0] + d, cp[1] - d]
-        centers[2,:] = [cp[0] - d, cp[1] + d]
-        centers[3,:] = [cp[0] + d, cp[1] + d]
+        centers[0, :] = [cp[0] - d, cp[1] - d]
+        centers[1, :] = [cp[0] + d, cp[1] - d]
+        centers[2, :] = [cp[0] - d, cp[1] + d]
+        centers[3, :] = [cp[0] + d, cp[1] + d]
         self._camera.setPupilsCenterInUnbinnedPixels(centers)
         self._camera.readFrame()
 
@@ -79,7 +77,7 @@ class SimulatedPyramidWfsCameraTest(unittest.TestCase):
         total = frame.sum()
         (sy, sx) = frame.shape
         dx = frame[:, -sx // 2:].sum() - frame[:, 0:sx // 2].sum()
-        dy = frame[-sy // 2:,:].sum() - frame[0:sy // 2,:].sum()
+        dy = frame[-sy // 2:, :].sum() - frame[0:sy // 2, :].sum()
         ttFromFlux = np.sin(np.pi / 2 * np.array([dx / total, dy / total])) * \
             self._camera.getSlopeSaturationInRadians() * \
             self._camera.getScaleInMeterPerPixel() * \
@@ -89,27 +87,36 @@ class SimulatedPyramidWfsCameraTest(unittest.TestCase):
                         "Wanted %s, got %s" % (ttCoeff, ttFromFlux))
 
     def _callback(self, frame):
-        print ('callback %d' % frame.counter())
+        self._logger.debug('callback. Counter: %d' % frame.counter())
         self._lastFrameCounter = frame.counter()
 
     def testCallbackStartAndStop(self):
-        print('testcallback')
+        self._logger.notice('testcallback')
         self._lastFrameCounter = 0
         self._camera.registerCallback(self._callback)
+        self._camera.setFrameRate(1000)
 
         def _frameCounterIncreased(self, originalFrameCounter):
             if self._lastFrameCounter <= originalFrameCounter:
-                raise Exception("last %d - original %d" % (
+                raise Exception("last %d <= wanted %d" % (
                     self._lastFrameCounter, originalFrameCounter))
 
+        self._logger.notice('starting acquisition')
         self._camera.startAcquisition()
         Poller(2).check(ExecutionProbe(_frameCounterIncreased, '', self, 0))
+        self._logger.notice('stopping acquisition')
         self._camera.stopAcquisition()
         currentFrameCnt = self._lastFrameCounter
+        self._logger.notice('current frame counter %d' %
+                            self._lastFrameCounter)
+        # Acquisition is stopped. But there may be one last frame being
+        # acquired. Assert that lastFrameCounter is not bigger than
+        # currentFrameCnt + 1
         self.assertRaises(
             RuntimeError,
-            Poller(2).check,
-            ExecutionProbe(_frameCounterIncreased, '', self, currentFrameCnt)
+            Poller(1, reportPeriodSec=0.5).check,
+            ExecutionProbe(_frameCounterIncreased, '',
+                           self, currentFrameCnt + 1)
         )
 
 

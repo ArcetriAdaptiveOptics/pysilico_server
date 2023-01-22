@@ -6,6 +6,7 @@ from rebin import rebin
 from plico.utils.zernike_generator import ZernikeGenerator
 from plico.types.zernike_coefficients import ZernikeCoefficients
 from pysilico_server.devices.base_simulated_camera import BaseSimulatedCamera
+from plico.utils.decorator import logEnterAndExit
 
 __version__ = "$Id: simulated_camera.py 293 2017-06-21 17:10:57Z lbusoni $"
 
@@ -22,7 +23,7 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
         pupilsSeparation = 520
         opticalAxis = (self.SENSOR_H / 2, self.SENSOR_W / 2)
         self._pupilsCenter = self._computeCenters(pupilsSeparation,
-                                                 opticalAxis)
+                                                  opticalAxis)
         self._tipTiltCoefficients = np.zeros(2)
         self._wavefront = None
         self._zernikeGenerator = None
@@ -37,7 +38,8 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
 
     def setPupilsRadiusInUnbinnedPixels(self, radius):
         self._pupilRadius = radius
-        self._wavefront = np.zeros((2 * self._pupilRadius, 2 * self._pupilRadius))
+        self._wavefront = np.zeros(
+            (2 * self._pupilRadius, 2 * self._pupilRadius))
         self._zernikeGenerator = ZernikeGenerator(2 * self._pupilRadius)
 
     def getPupilsRadiusInUnbinnedPixels(self):
@@ -50,7 +52,7 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
         self._wavefront = wavefront
 
     def _computeWavefrontFromZernikeCoefficients(self, coeff, zg):
-        wf = 0.* zg.getZernike(1)
+        wf = 0. * zg.getZernike(1)
         for y in coeff.zernikeIndexes():
             wf += coeff.getZ([y]) * zg.getZernike(y)
         return wf
@@ -65,10 +67,10 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
         pupDist = int(0.5 * pupilsSeparation)
         center = opticalAxis
         res = np.zeros((4, 2))
-        res[0,:] = [center[0] + pupDist, center[1] - pupDist]
-        res[1,:] = [center[0] + pupDist, center[1] + pupDist]
-        res[2,:] = [center[0] - pupDist, center[1] - pupDist]
-        res[3,:] = [center[0] - pupDist, center[1] + pupDist]
+        res[0, :] = [center[0] + pupDist, center[1] - pupDist]
+        res[1, :] = [center[0] + pupDist, center[1] + pupDist]
+        res[2, :] = [center[0] - pupDist, center[1] - pupDist]
+        res[3, :] = [center[0] - pupDist, center[1] + pupDist]
         return res
 
     def setPupilsCenterInUnbinnedPixels(self, centers):
@@ -94,19 +96,19 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
 
     def _pupilImagesFromWavefront(self, wavefront):
         Amat = np.array([[1., 0, 1, 0],
-                        [0., 1, 0, 1],
-                        [0., 0, 1, 1],
-                        [1., 1, 0, 0]])
+                         [0., 1, 0, 1],
+                         [0., 0, 1, 1],
+                         [1., 1, 0, 0]])
 
         (dyMap, dxMap) = np.gradient(wavefront / self._scaleInMeterPerPixel)
         dxMapClipped = dxMap.clip(min=-self._slopeSaturationInRad,
-                                 max=self._slopeSaturationInRad)
+                                  max=self._slopeSaturationInRad)
         dyMapClipped = dyMap.clip(min=-self._slopeSaturationInRad,
-                                 max=self._slopeSaturationInRad)
+                                  max=self._slopeSaturationInRad)
         dx = 2. / np.pi * np.arcsin(dxMapClipped / self._slopeSaturationInRad)
         dy = 2. / np.pi * np.arcsin(dyMapClipped / self._slopeSaturationInRad)
         (sz0, sz1) = dxMap.shape
-        totalIntensity = 1.* sz0 * sz1
+        totalIntensity = 1. * sz0 * sz1
         B = totalIntensity / (sz0 * sz1) / 2 * np.array(
             [1 - dx, 1 + dx, 1 - dy, 1 + dy])
 
@@ -119,6 +121,9 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
 
         return pupils
 
+    @logEnterAndExit('Enter _computeFrameFromWavefront',
+                     'Exit _computeFrameFromWavefront',
+                     level='debug')
     def _computeFrameFromWavefront(self):
         radius = self._pupilRadius
         cc = self._pupilsCenter
@@ -151,7 +156,6 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
             pixels = rebin(pixels, self._binning) * self._binning ** 2
         pixels = pixels.clip(min=0, max=self.MAX_VALUE)
 
-        self._counter += 1
         time.sleep(1. / self.getFrameRate())
         return pixels.astype(self.DTYPE)
 
