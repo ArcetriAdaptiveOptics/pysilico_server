@@ -19,7 +19,7 @@ class CameraException(Exception):
     pass
 
 
-def ContextWrapper():
+def WithVimbaIfNeeded():
     def wrapperFunc(f):
         @functools.wraps(f)
         def wrapper_vimba(self, *args, **kwds):
@@ -72,6 +72,8 @@ class Runner(BaseRunner):
         elif cameraModel == 'avt':
             self._use_vimba_wrapper = True
             self._createAvtCamera(cameraDeviceSection)
+        elif cameraModel == 'ocam2k':
+            self._createOcam2KCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
 
@@ -85,7 +87,7 @@ class Runner(BaseRunner):
         self._camera = SimulatedAuxiliaryCamera(cameraName)
         self._setBinning(cameraDeviceSection)
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _createAvtCamera(self, cameraDeviceSection):
         from pysilico_server.devices.avtCamera import AvtCamera
         from vimba import Vimba
@@ -99,6 +101,10 @@ class Runner(BaseRunner):
         self._camera = AvtCamera(self._vimbacamera, cameraName)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
         self._setBinning(cameraDeviceSection)
+
+    def _createOcam2KCamera(self, cameraDeviceSection):
+        from pysilico_server.devices.ocam2kCamera import Ocam2KCamera
+        self._camera = Ocam2KCamera()
 
     def _setBinning(self, cameraDeviceSection):
         try:
@@ -132,7 +138,7 @@ class Runner(BaseRunner):
         self._displaySocket = self.rpc().publisherSocket(
             self._zmqPorts.SERVER_DISPLAY_PORT, hwm=1)
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _createDevice(self):
 
         self._createCameraDevice()
@@ -148,7 +154,7 @@ class Runner(BaseRunner):
             self._displaySocket,
             self.rpc())
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _runLoop(self):
         self._logRunning()
 
