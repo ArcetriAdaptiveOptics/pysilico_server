@@ -88,6 +88,9 @@ class Ocam2KLowLevel():
         width, height = FliSdk_V2.GetCurrentImageDimension(context)
         if verbose: logFunc('width, height:', width, height)
 
+        self._width = width
+        self._height = height
+
         result = FliSdk_V2.EnableUnsignedPixel(context, True)
         if verbose: logFunc('EnableUnsignedPixel:', result)
 
@@ -117,6 +120,12 @@ class Ocam2KLowLevel():
 
         self._lastIndex = None
 
+    def getWidth(self):
+        return self._width
+
+    def getHeight(self):
+        return self._height
+
     def setBinning(self, binning):
 
         if binning == 1:
@@ -138,8 +147,10 @@ class Ocam2KLowLevel():
         '''Adds a callback for new images that will be called
         at no more than *fps* Hz. If *beforeCopy* is True, the image
         will be in the frame grabber memory and be available
-        for a short time only, but this mode has a very low latency.'''
-        FliSdk_V2.AddCallbackNewImage(self.context, func, fps, beforeCop, userdata)
+        for a short time only, but this mode has a very low latency.
+        *userdata* will be passed as-is to the callback function
+        as the second argument.'''
+        FliSdk_V2.AddCallbackNewImage(self.context, func, fps, beforeCopy, userdata)
 
     def start(self):
         if not self.started:
@@ -253,9 +264,8 @@ class Ocam2KCamera(AbstractCamera):
         self._camera = Ocam2KCamera(binning=1, logFunc=self._logger.notice)
         self._name = name
         self._binning = 1
-        self._counter = 0
-        self._nrows = 240
-        self._ncols = 240
+        self._ncols = self._camera.getWidth()
+        self._nrows = self._camera.getHeight()
         self._maxClientFps = 100
         self._mutex = threading.RLock()
         self._callbackList = []
@@ -332,12 +342,30 @@ class Ocam2KCamera(AbstractCamera):
         self._callbackList.append(callback)
 
     @override
-    def getFrameCounter(self):
-        return self._counter
-
-    @override
     def deinitialize(self):
         pass
+
+    @override
+    def setParameter(self, name, value):
+        if name == 'EMGain':
+            self._camera.setEMGain(value)
+        elif name == 'temperatureSetPoint':
+            self._camera.setTemperatureSetPoint(value)
+        elif name == 'TTLSync':
+            self._camera.setSyncro(value)
+        elif name == 'protectionReset':
+            self._camera.protectionReset()
+        else:
+            raise Exception('Parameter %s is not valid' % str(name))
+
+    @override
+    def getParameters(self):
+        return {'EMGain': self._camera.getEMGain(),
+                'temperatureSetPoint': self._camera.getTemperatureSetPoint(),
+                'chipTemperature': self._camera.getTemperature(),
+                'TTLSync': self._camera.getSyncro(),
+                'protection': False,
+                }
 
 
 

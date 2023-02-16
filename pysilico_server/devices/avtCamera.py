@@ -390,3 +390,13 @@ class AvtCamera(AbstractCamera):
             # self._camera.closeCamera()
         except Exception as e:
             self._logger.warn('Failed to close camera:'+str(e))
+
+    @override
+    def setParameter(self, name, value):
+        raise Exception('Parameter %s is not valid' % str(name))
+
+    @override
+    def getParameters(self):
+        return {}
+
+

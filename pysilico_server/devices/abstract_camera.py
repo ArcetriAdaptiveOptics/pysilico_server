@@ -65,3 +65,14 @@ class AbstractCamera(with_metaclass(abc.ABCMeta, object)):
     @abc.abstractmethod
     def deinitialize(self):
         assert False
+
+    @abc.abstractmethod
+    def setParameter(self, name, value):
+        assert False
+
+    @abc.abstractmethod
+    def getParameters(self):
+        assert False
+
+
+
