@@ -35,6 +35,7 @@ class SimulatedPyramidWfsCamera(BaseSimulatedCamera):
 
         self._logger.notice('Pupil centers %s' % (self._pupilsCenter))
         self._logger.notice('Pupil radius %s' % (self._pupilRadius))
+        self.setFrameRate(3)
 
     def setPupilsRadiusInUnbinnedPixels(self, radius):
         self._pupilRadius = radius
