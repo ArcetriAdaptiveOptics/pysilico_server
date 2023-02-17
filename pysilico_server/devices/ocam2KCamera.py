@@ -12,6 +12,17 @@ from pysilico_server.devices.abstract_camera import AbstractCamera
 from plico.utils.logger import Logger
 from pysilico.types.camera_frame import CameraFrame
 
+# Example of bash script to set environment variables
+# and also the current directory before starting
+'''
+BASEDIR=/opt/FirstLightImaging
+
+export PYTHONPATH=$BASEDIR/FliSdk/Python/lib
+export LD_LIBRARY_PATH=/home/labot/anaconda3/envs/p37/lib:$BASEDIR/FirstLightVision/lib
+
+(cd $BASEDIR/FirstLightVision && pysilico_start)
+'''
+
 
 
 class Ocam2KLowLevel():
