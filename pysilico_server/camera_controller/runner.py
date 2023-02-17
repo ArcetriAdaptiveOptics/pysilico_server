@@ -1,4 +1,5 @@
 import os
+import traceback
 import time
 from plico.utils.base_runner import BaseRunner
 from pysilico_server.devices.simulated_camera import \
@@ -72,7 +73,7 @@ class Runner(BaseRunner):
         elif cameraModel == 'avt':
             self._use_vimba_wrapper = True
             self._createAvtCamera(cameraDeviceSection)
-        elif cameraModel == 'ocam2k':
+        elif cameraModel == 'ocam2K':
             self._createOcam2KCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
@@ -103,8 +104,8 @@ class Runner(BaseRunner):
         self._setBinning(cameraDeviceSection)
 
     def _createOcam2KCamera(self, cameraDeviceSection):
-        from pysilico_server.devices.ocam2kCamera import Ocam2KCamera
-        self._camera = Ocam2KCamera()
+        from pysilico_server.devices.ocam2KCamera import Ocam2KCamera
+        self._camera = Ocam2KCamera('ocam2k')
 
     def _setBinning(self, cameraDeviceSection):
         try:
@@ -181,6 +182,7 @@ class Runner(BaseRunner):
                     delattr(self, '_vimbacamera')
                 time.sleep(1)
             except Exception as e:
+                traceback.print_exc()
                 self._logger.fatal('Unhandled exception: '+str(e))
                 self._isTerminated = True
         return os.EX_OK
