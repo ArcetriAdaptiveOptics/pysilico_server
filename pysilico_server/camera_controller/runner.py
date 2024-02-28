@@ -30,7 +30,7 @@ def ContextWrapper():
             try:
                 with vimba.Vimba.get_instance():
                     if hasattr(self, '_vimbacamera'):
-                       with self._vimbacamera:
+                        with self._vimbacamera:
                             return f(self, *args, **kwds)
                     else:
                         return f(self, *args, **kwds)
@@ -170,10 +170,12 @@ class Runner(BaseRunner):
             except CameraException as e:
                 # Camera unreachable or other errors
                 # Wait a little bit and try to reconnect
-                print(e)
+                self._logger.warn(e)
+                if hasattr(self, '_vimbacamera'):
+                    delattr(self, '_vimbacamera')
                 time.sleep(1)
             except Exception as e:
-                print('Unhandled exception: '+str(e))
+                self._logger.fatal('Unhandled exception: '+str(e))
                 self._isTerminated = True
         return os.EX_OK
 

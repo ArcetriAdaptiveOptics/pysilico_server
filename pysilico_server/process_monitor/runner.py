@@ -14,10 +14,6 @@ from pysilico_server.utils.process_startup_helper import \
 from pysilico_server.utils.constants import Constants
 
 
-__version__ = "$Id: runner.py 31 2018-01-27 10:47:29Z lbusoni $"
-
-
-
 class Runner(BaseRunner):
 
     RUNNING_MESSAGE = "Monitor of processes is running."
@@ -25,38 +21,31 @@ class Runner(BaseRunner):
     def __init__(self):
         BaseRunner.__init__(self)
 
-        self._logger= None
-        self._processes= []
-        self._timeToDie= False
-        self._psh= ProcessStartUpHelper()
-
+        self._logger = None
+        self._processes = []
+        self._timeToDie = False
+        self._psh = ProcessStartUpHelper()
 
     def _determineInstalledBinaryDir(self):
         try:
-            self._binFolder= self._configuration.getValue(
+            self._binFolder = self._configuration.getValue(
                 Constants.PROCESS_MONITOR_CONFIG_SECTION,
                 'binaries_installation_directory')
         except KeyError:
-            self._binFolder= None
-
+            self._binFolder = None
 
     def _logRunning(self):
         self._logger.notice(self.RUNNING_MESSAGE)
         sys.stdout.flush()
 
-
     def _setSignalIntHandler(self):
         signal.signal(signal.SIGINT, self._signalHandling)
-
 
     def _signalHandling(self, signalNumber, stackFrame):
         self._logger.notice("Received signal %d (%s)" %
                             (signalNumber, str(stackFrame)))
         if signalNumber == signal.SIGINT:
-            self._timeToDie= True
-
-
-
+            self._timeToDie = True
 
     def _terminateAll(self):
 
@@ -67,8 +56,8 @@ class Runner(BaseRunner):
 
         self._logger.notice("Terminating all subprocesses using psutil")
         self._logger.notice("My pid %d" % os.getpid())
-        parent= psutil.Process(os.getpid())
-        processes= parent.children(recursive=True)
+        parent = psutil.Process(os.getpid())
+        processes = parent.children(recursive=True)
         for process in processes:
             try:
                 self._logger.notice(
@@ -87,27 +76,24 @@ class Runner(BaseRunner):
 
         self._logger.notice("terminated all")
 
-
-
     def _spawnController(self, name, section):
         if self._binFolder:
-            cmd= [os.path.join(self._binFolder, name)]
+            cmd = [os.path.join(self._binFolder, name)]
         else:
-            cmd= [name]
+            cmd = [name]
         cmd += [self._configuration._filename, section]
-        print('Spawning: ',cmd)
-        self._logger.notice("MirrorController cmd is %s" % cmd)
-        mirrorController= subprocess.Popen(cmd)
+        self._logger.notice("Controller cmd is %s" % cmd)
+        mirrorController = subprocess.Popen(cmd)
         self._processes.append(mirrorController)
         return mirrorController
 
-
     def _setup(self):
-        self._logger= Logger.of("Process monitor runner")
+        self._logger = Logger.of("Process monitor runner")
         self._setSignalIntHandler()
         self._logger.notice("Creating controller processes")
         self._determineInstalledBinaryDir()
-        sections = self._configuration.numberedSectionList(prefix='camera')
+        sections = self._configuration.numberedSectionList(
+            prefix=Constants.SERVER_CONFIG_SECTION_PREFIX)
         for section in sections:
             self._spawnController(Constants.SERVER_PROCESS_NAME, section)
 
@@ -117,14 +103,11 @@ class Runner(BaseRunner):
             time.sleep(1)
         self._terminateAll()
 
-
-
     @override
     def run(self):
         self._setup()
         self._runLoop()
         return os.EX_OK
-
 
     @override
     def terminate(self, signal, frame):

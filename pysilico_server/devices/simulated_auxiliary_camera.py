@@ -2,10 +2,7 @@
 
 import numpy as np
 import time
-from rebin import rebin
 from pysilico_server.devices.base_simulated_camera import BaseSimulatedCamera
-
-__version__ = "$Id: simulated_camera.py 203 2017-01-16 11:30:46Z lbusoni $"
 
 
 class SimulatedAuxiliaryCamera(BaseSimulatedCamera):

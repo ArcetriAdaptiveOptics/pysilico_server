@@ -144,7 +144,7 @@ class CameraController(Stepable,
     def _downsizeForDisplay(self, frame):
         DISPLAY_FRAME_SIZE = 256.
         minSize = np.min(frame.toNumpyArray().shape)
-        downsizeBy = np.int(np.ceil(
+        downsizeBy = int(np.ceil(
             minSize / DISPLAY_FRAME_SIZE))
         if downsizeBy > 1:
             array = self._downsizeBySampling(frame.toNumpyArray(),
