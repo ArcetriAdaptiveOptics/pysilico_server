@@ -72,6 +72,8 @@ class Runner(BaseRunner):
         elif cameraModel == 'avt':
             self._use_vimba_wrapper = True
             self._createAvtCamera(cameraDeviceSection)
+        elif cameraModel == 'basler':
+            self._createBaslerCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
 
@@ -99,6 +101,14 @@ class Runner(BaseRunner):
         self._camera = AvtCamera(self._vimbacamera, cameraName)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
         self._setBinning(cameraDeviceSection)
+
+    def _createBaslerCamera(self, cameraDeviceSection):
+        from pysilico_server.devices import basler_camera
+        ipAddress = self.configuration.getValue(cameraDeviceSection,
+                                                'ip_address')
+        cameraName = self.configuration.deviceName(cameraDeviceSection)
+        self._baslercamera = basler_camera.get_device_by_ip(ipAddress)
+        self._camera = basler_camera.BaslerCamera(self._baslercamera, cameraName)
 
     def _setBinning(self, cameraDeviceSection):
         try:
