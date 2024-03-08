@@ -63,5 +63,13 @@ class AbstractCamera(with_metaclass(abc.ABCMeta, object)):
         assert False
 
     @abc.abstractmethod
+    def getFrameRate(self):
+        assert False
+
+    @abc.abstractmethod
+    def setFrameRate(self, frameRateInHz):
+        assert False
+
+    @abc.abstractmethod
     def deinitialize(self):
         assert False
