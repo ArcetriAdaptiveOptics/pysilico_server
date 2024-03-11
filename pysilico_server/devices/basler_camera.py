@@ -1,12 +1,11 @@
 import threading
+import traceback
 import numpy as np
 from pypylon import pylon, genicam
-from pysilico_server.devices.abstract_camera import AbstractCamera
+from pysilico_server.devices.abstract_camera import AbstractCamera, CameraException
 from pysilico.types.camera_frame import CameraFrame
 from plico.utils.decorator import override, synchronized
 from plico.utils.logger import Logger
-import functools
-import time
 
 
 class ImageHandler(pylon.ImageEventHandler):
@@ -18,10 +17,14 @@ class ImageHandler(pylon.ImageEventHandler):
     @synchronized("_mutex")
     def OnImageGrabbed(self, camera, grabResult):
         try:
-            print("CSampleImageEventHandler::OnImageGrabbed called.")
-            self._basler_camera._lastValidFrame = CameraFrame(grabResult.Array, counter=self._basler_camera._counter)
-            self._basler_camera._notifyListenersAboutNewFrame()
-            self._basler_camera._counter += 1
+            if not grabResult.GrabSucceeded():
+                return self._basler_camera._logger.warn("Frame grab not successful")
+            elif not grabResult.IsValid():
+                return self._basler_camera._logger.warn("Frame grab is not valid")
+            else:
+                self._basler_camera._lastValidFrame = CameraFrame(grabResult.Array, counter=self._basler_camera._counter)
+                self._basler_camera._notifyListenersAboutNewFrame()
+                self._basler_camera._counter += 1
         except Exception as e:
             self._basler_camera._logger.warn("Exception in handling frame callback: %s" %str(e))
 
@@ -123,7 +126,12 @@ class BaslerCamera(AbstractCamera):
     @synchronized("_mutex")
     @override
     def exposureTime(self):
-        return self._camera.ExposureTimeAbs() * 1e-3
+        try:
+            return self._camera.ExposureTimeAbs() * 1e-3
+        except genicam.RuntimeException as e:
+            self._logger.warn('Unhandled exception: '+str(e))
+            traceback.print_exc()
+            raise CameraException(str(e)) 
     
     @synchronized("_mutex")
     def pixelFormat(self):
@@ -150,10 +158,11 @@ class BaslerCamera(AbstractCamera):
         self._camera.UserSetSelector.SetValue("Default")
         self._camera.UserSetLoad.Execute()
         self._camera.TriggerSelector.SetValue("FrameStart")
-        self._camera.PixelFormat.SetValue("Mono10")
+        self._camera.PixelFormat.SetValue("Mono10p")
         self._camera.AcquisitionMode.SetValue("Continuous")
+        self._camera.GevSCPD.SetValue(1500)
         self._camera.TriggerMode.SetValue("Off")
-        self._camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly, pylon.GrabLoop_ProvidedByInstantCamera)
+        self._camera.StartGrabbing(pylon.GrabStrategy_LatestImages, pylon.GrabLoop_ProvidedByInstantCamera)
         self._logger.notice('Continuous acquisition started')
 
     @synchronized("_mutex")
@@ -173,7 +182,6 @@ class BaslerCamera(AbstractCamera):
     @synchronized("_mutex")
     @override
     def setFrameRate(self, frameRateInHz):
-        #TODO: capire (con GUI funzionante) se l'enable e' quello che serve per riuscire a cambiare il framerate
         self._camera.AcquisitionFrameRateEnable.Value = True
         self._camera.AcquisitionFrameRateAbs.SetValue(frameRateInHz)
     
