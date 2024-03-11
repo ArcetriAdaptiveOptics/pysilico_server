@@ -1,6 +1,7 @@
 import os
 import time
 from plico.utils.base_runner import BaseRunner
+from pysilico_server.devices.abstract_camera import CameraException
 from pysilico_server.devices.simulated_camera import \
     SimulatedPyramidWfsCamera
 from pysilico_server.devices.simulated_auxiliary_camera import \
@@ -12,11 +13,8 @@ from pysilico_server.camera_controller.camera_controller import \
     CameraController
 from plico.rpc.zmq_ports import ZmqPorts
 import functools
-
-class CameraException(Exception):
-    '''Custom exception class in order to avoid
-       exposing the Vimba namespace outside the context wrapper'''
-    pass
+import traceback
+from pypylon import genicam
 
 
 def ContextWrapper():
@@ -186,6 +184,7 @@ class Runner(BaseRunner):
                 time.sleep(1)
             except Exception as e:
                 self._logger.fatal('Unhandled exception: '+str(e))
+                traceback.print_exc()
                 self._isTerminated = True
         return os.EX_OK
 

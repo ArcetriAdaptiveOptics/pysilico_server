@@ -7,6 +7,11 @@ from plico.utils.decorator import returns
 __version__= "$Id: abstract_camera.py 268 2017-04-12 21:54:14Z lbusoni $"
 
 
+class CameraException(Exception):
+    '''Custom exception class in order to avoid
+       exposing the Vimba namespace outside the context wrapper'''
+    pass
+
 class AbstractCamera(with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
