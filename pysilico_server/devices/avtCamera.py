@@ -65,9 +65,15 @@ class AvtCamera(AbstractCamera):
 
     @withVimba()
     def _initialize(self):
+        # Identify if the camera is one of the Alvium models
+        self._isAlvium = (self._camera.get_name().lower()[0:6] == 'alvium')
 
         # Limit data rate from camera as a default
-        self.setStreamBytesPerSecond(10000000)
+        if self._isAlvium:
+            # Alvium G1 has a higher min value for stream bps
+            self.setStreamBytesPerSecond(32375000)
+        else:
+            self.setStreamBytesPerSecond(10000000)
 
         self._resetBinningAndOffset()
 
@@ -110,8 +116,11 @@ class AvtCamera(AbstractCamera):
             restartAcquistion = True
 
         if self._isBinningAvailable():
-            self._camera.BinningHorizontal.set(self._binning)
+            # Vertical to be set before Horizontal binning because
+            # in some cameras the Horizontal binning value could have
+            # constraints given by the Vertical binning setting.
             self._camera.BinningVertical.set(self._binning)
+            self._camera.BinningHorizontal.set(self._binning)
         elif self._isDecimationAvailable():
             self._camera.DecimationHorizontal.set(self._binning)
             self._camera.DecimationVertical.set(self._binning)
@@ -146,7 +155,7 @@ class AvtCamera(AbstractCamera):
                             self.deviceID()))
         self._logger.notice('Sensor is %d rows x %d cols, %d bits/pixel' % (
             self._camera.SensorHeight.get(),
-            self._camera.SensorWidth.get(), self._camera.SensorBits.get()))
+            self._camera.SensorWidth.get(), self.bpp()))
         self._logger.notice('Output format is %s' % self.pixelFormat())
         self._logger.notice('Exposure time is %f ms' % self.exposureTime())
 
@@ -159,9 +168,13 @@ class AvtCamera(AbstractCamera):
             try:
                 # Some cameras use a different name
                 self._camera.DeviceLinkThroughputLimit.set(streamBytesPerSecond)
+                self._camera.DeviceLinkThroughputLimitMode.set('On')
+                mode_entry = self._camera.DeviceLinkThroughputLimitMode.get()
+                self._logger.notice('Device Link Trhougput Mode set to: '+str(mode_entry))
             except AttributeError:
                 # If we can't set it, return silently and
                 # avoid the logging notice
+                self._logger.notice('No Attribute for setting StreamBytesPerSecond')
                 return
         self._logger.notice('Camera data rate set to %4.1f MB/s'
                              % (streamBytesPerSecond / 1e6))
@@ -172,8 +185,13 @@ class AvtCamera(AbstractCamera):
         try:
             return self._camera.StreamBytesPerSecond.get()
         except AttributeError:
-            # Some cameras do not have this attribute
-            return 0
+            try:
+                # Some cameras use a different name
+                self._camera.DeviceLinkThroughputLimit.get()
+            except AttributeError:
+                # Some cameras do not have this attribute.
+                # Zero is returned in this case.
+                return 0
 
     @override
     def setBinning(self, binning):
@@ -215,7 +233,21 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def bpp(self):
-        return self._camera.SensorBits.get()
+        if self._isAlvium:
+            bpp_str = str(self._camera.SensorBitDepth.get())
+            # Alvium typ cameras return a str: Bpp8, Bpp10 or Bpp12
+            if bpp_str == 'Bpp8':
+                return 8
+            elif bpp_str == 'Bpp10':
+                return 10
+            elif bpp_str == 'Bpp12':
+                return 12
+            else:
+                # In case of Adaptive or other unsupported EnumEntry
+                raise Exception('Unsupported SesnorBitDepth setting: '+bpp_str)
+        else:
+            return self._camera.SensorBits.get()
+             
 
     @synchronized("_mutex")
     @withCamera()
@@ -262,15 +294,26 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def setFrameRate(self, frameRate):
-        try:
-            self._camera.AcquisitionFrameRateAbs.set(np.minimum(
-                frameRate,
-                self._maximum_frame_rate()))
-        except AttributeError:
-            # Some cameras use AcquisitionFrameRate, others AcquisitionFrameRateAbs. We try both.
-            self._camera.AcquisitionFrameRate.set(np.minimum(
-                frameRate,
-                self._maximum_frame_rate()))
+        if self._isAlvium:
+            isFrameRateReadOnly = not self._camera.AcquisitionFrameRateEnable.get() 
+            if isFrameRateReadOnly:
+                expTimeInUs = 1e6/frameRate
+                expTimeRange = self._camera.ExposureTime.get_range()
+                expTimeInRange = np.min([expTimeInUs, expTimeRange[1]])
+                expTimeInRange = np.max([expTimeInRange, expTimeRange[0]])
+                self.setExposureTime(1e-3 * expTimeInRange)
+            else:
+                self._camera.AcquisitionFrameRate.set(frameRate)
+        else:
+            try:
+                self._camera.AcquisitionFrameRateAbs.set(np.minimum(
+                    frameRate,
+                    self._maximum_frame_rate()))
+            except AttributeError:
+                # Some cameras use AcquisitionFrameRate, others AcquisitionFrameRateAbs. We try both.
+                self._camera.AcquisitionFrameRate.set(np.minimum(
+                    frameRate,
+                    self._maximum_frame_rate()))
         self._logger.notice('Frame rate set to %g Hz - (requested %g Hz)'
                             % (self.getFrameRate(), frameRate))
 
@@ -287,10 +330,13 @@ class AvtCamera(AbstractCamera):
             #    self._counter, frame.get_timestamp() /
             #    self._timeStampTickFrequency))
             if frame.get_status() == FrameStatus.Complete:
+                h, w = frame.get_height(), frame.get_width() 
                 frame_data = frame.get_buffer()
+                self._logger.debug('Frame size H x W: %g x %g' 
+                                   % (h, w))
                 img = np.ndarray(buffer=frame_data,
                                  dtype=self._dtype,
-                                 shape=(frame.get_height(), frame.get_width()))
+                                 shape=(h, w))
                 self._lastValidFrame = CameraFrame(img, counter=self._counter)
                 self._notifyListenersAboutNewFrame()
                 self._counter += 1
@@ -314,15 +360,27 @@ class AvtCamera(AbstractCamera):
         except (AttributeError, VimbaFeatureError):
             pass
 
+
     def _maximum_frame_rate(self):
+        if self._isAlvium:
+            frame_rate_range = self._camera.AcquisitionFrameRate.get_range() 
+            self._logger.debug('_maximum_frame_rate: Framerate Range [Hz] (%g, %g)' 
+                                % frame_rate_range)
+            maxFrameRate = frame_rate_range[1]
+        else:
+            maxFrameRate =  self._camera.AcquisitionFrameRateLimit.get()
         aLittleBitSlower = 0.01
-        return self._camera.AcquisitionFrameRateLimit.get() - aLittleBitSlower
+        return maxFrameRate - aLittleBitSlower
+    
 
     @withCamera()
     def startAcquisition(self):
         self._adjust_packet_size()
         self._camera.TriggerSelector.set('FrameStart')
-        self._camera.TriggerSource.set('FixedRate')
+        if self._isAlvium:
+            self._camera.TriggerSource.set('Software')
+        else:
+            self._camera.TriggerSource.set('FixedRate')
         self._camera.AcquisitionMode.set('Continuous')
         self.setFrameRate(self._maximum_frame_rate())
         try:
@@ -332,6 +390,8 @@ class AvtCamera(AbstractCamera):
             pass
         self._camera.start_streaming(
             handler=self._frame_callback, buffer_count=10)
+        if self._isAlvium:
+            self._camera.TriggerSoftware.run()
         self._logger.notice('Continuous acquisition started')
         self._isContinuouslyAcquiring = True
 
