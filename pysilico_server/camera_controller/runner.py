@@ -14,7 +14,6 @@ from pysilico_server.camera_controller.camera_controller import \
 from plico.rpc.zmq_ports import ZmqPorts
 import functools
 import traceback
-from pypylon import genicam
 
 
 def ContextWrapper():
