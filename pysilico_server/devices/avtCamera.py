@@ -129,9 +129,8 @@ class AvtCamera(AbstractCamera):
 
         self._camera.OffsetX.set(0)
         self._camera.OffsetY.set(0)
-        self._camera.Height.set(
-            self._camera.SensorHeight.get() // self._binning)
-        self._camera.Width.set(self._camera.SensorWidth.get() // self._binning)
+        self._setHeight()
+        self._setWidth()
         self._camera.set_pixel_format(PixelFormat.Mono12)
         self._camera.GVSPPacketSize.set(1500)
         # Not all cameras have this
@@ -145,6 +144,30 @@ class AvtCamera(AbstractCamera):
 
         if restartAcquistion:
             self.startAcquisition()
+
+    @override
+    @synchronized("_mutex")
+    @withCamera()
+    def _setHeight(self):
+        try:
+            self._camera.Height.set(
+                self._camera.HeightMax.get() // self._binning)
+        except AttributeError:
+            # Some cameras use HeightMax, others SensorHeight. We try both.
+             self._camera.Height.set(
+                 self._camera.SensorHeight.get() // self._binning)
+             
+    @override
+    @synchronized("_mutex")
+    @withCamera()
+    def _setWidth(self):
+        try:
+            self._camera.Width.set(
+                self._camera.WidthMax.get() // self._binning)
+        except AttributeError:
+            # Some cameras use WidthMax, others SensorWidth. We try both.
+             self._camera.Width.set(
+                 self._camera.SensorWidth.get() // self._binning)
 
     @synchronized("_mutex")
     @withCamera()
