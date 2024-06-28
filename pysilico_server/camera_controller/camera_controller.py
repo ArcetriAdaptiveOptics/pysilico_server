@@ -180,7 +180,8 @@ class CameraController(Stepable,
                 self._camera.dtype(),
                 self._camera.getBinning(),
                 self._camera.exposureTime(),
-                self._camera.getFrameRate())
+                self._camera.getFrameRate(),
+                self._camera.getParameters())
         return self._cameraStatus
 
     def _publishStatus(self):
@@ -193,3 +194,11 @@ class CameraController(Stepable,
         self._camera.setFrameRate(frameRate)
         with self._mutexStatus:
             self._cameraStatus = None
+
+    @logEnterAndExit('Entering setParameter',
+                     'Executed setParameter')
+    def setParameter(self, name, value):
+        self._camera.setParameter(name, value)
+        with self._mutexStatus:
+            self._cameraStatus = None
+

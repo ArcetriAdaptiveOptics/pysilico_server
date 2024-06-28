@@ -47,6 +47,7 @@ class BaseSimulatedCamera(AbstractCamera):
         self._binning = 1
         self._totalFluxPerMilliSecond = 2e6
         self._noiseInCount = 10.
+        self._testCustomParameter = 42
 
         self._lastValidFrame = None
         self._callbackList = []
@@ -167,3 +168,16 @@ class BaseSimulatedCamera(AbstractCamera):
     @override
     def getFrameCounter(self):
         return self._counter
+
+    @override
+    def setParameter(self, name, value):
+        if name == 'testParameter':
+            self._testCustomParameter = value
+        else:
+            raise Exception('Parameter %s is not valid' % str(name))
+
+    @override
+    def getParameters(self):
+        return {'testParameter': self._testCustomParameter}
+
+
