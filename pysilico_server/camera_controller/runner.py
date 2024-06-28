@@ -2,6 +2,7 @@ import os
 import traceback
 import time
 from plico.utils.base_runner import BaseRunner
+from pysilico_server.devices.abstract_camera import CameraException
 from pysilico_server.devices.simulated_camera import \
     SimulatedPyramidWfsCamera
 from pysilico_server.devices.simulated_auxiliary_camera import \
@@ -13,11 +14,7 @@ from pysilico_server.camera_controller.camera_controller import \
     CameraController
 from plico.rpc.zmq_ports import ZmqPorts
 import functools
-
-class CameraException(Exception):
-    '''Custom exception class in order to avoid
-       exposing the Vimba namespace outside the context wrapper'''
-    pass
+import traceback
 
 
 def WithVimbaIfNeeded():
@@ -75,6 +72,8 @@ class Runner(BaseRunner):
             self._createAvtCamera(cameraDeviceSection)
         elif cameraModel == 'ocam2K':
             self._createOcam2KCamera(cameraDeviceSection)
+        elif cameraModel == 'basler':
+            self._createBaslerCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
 
@@ -106,6 +105,14 @@ class Runner(BaseRunner):
     def _createOcam2KCamera(self, cameraDeviceSection):
         from pysilico_server.devices.ocam2KCamera import Ocam2KCamera
         self._camera = Ocam2KCamera('ocam2k')
+
+    def _createBaslerCamera(self, cameraDeviceSection):
+        from pysilico_server.devices import basler_camera
+        ipAddress = self.configuration.getValue(cameraDeviceSection,
+                                                'ip_address')
+        cameraName = self.configuration.deviceName(cameraDeviceSection)
+        self._baslercamera = basler_camera.get_device_by_ip(ipAddress)
+        self._camera = basler_camera.BaslerCamera(self._baslercamera, cameraName)
 
     def _setBinning(self, cameraDeviceSection):
         try:
@@ -184,6 +191,7 @@ class Runner(BaseRunner):
             except Exception as e:
                 traceback.print_exc()
                 self._logger.fatal('Unhandled exception: '+str(e))
+                traceback.print_exc()
                 self._isTerminated = True
         return os.EX_OK
 
