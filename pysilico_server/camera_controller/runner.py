@@ -1,4 +1,5 @@
 import os
+import traceback
 import time
 from plico.utils.base_runner import BaseRunner
 from pysilico_server.devices.abstract_camera import CameraException
@@ -16,7 +17,7 @@ import functools
 import traceback
 
 
-def ContextWrapper():
+def WithVimbaIfNeeded():
     def wrapperFunc(f):
         @functools.wraps(f)
         def wrapper_vimba(self, *args, **kwds):
@@ -69,6 +70,8 @@ class Runner(BaseRunner):
         elif cameraModel == 'avt':
             self._use_vimba_wrapper = True
             self._createAvtCamera(cameraDeviceSection)
+        elif cameraModel == 'ocam2K':
+            self._createOcam2KCamera(cameraDeviceSection)
         elif cameraModel == 'basler':
             self._createBaslerCamera(cameraDeviceSection)
         elif cameraModel == 'cblue_one':
@@ -86,7 +89,7 @@ class Runner(BaseRunner):
         self._camera = SimulatedAuxiliaryCamera(cameraName)
         self._setBinning(cameraDeviceSection)
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _createAvtCamera(self, cameraDeviceSection):
         from pysilico_server.devices.avtCamera import AvtCamera
         from vimba import Vimba
@@ -105,6 +108,10 @@ class Runner(BaseRunner):
         from pysilico_server.devices import cblue_camera
         cameraName = self.configuration.deviceName(cameraDeviceSection)
         self._camera = cblue_camera.CblueOneCamera(cameraName)
+
+    def _createOcam2KCamera(self, cameraDeviceSection):
+        from pysilico_server.devices.ocam2KCamera import Ocam2KCamera
+        self._camera = Ocam2KCamera('ocam2k')
 
     def _createBaslerCamera(self, cameraDeviceSection):
         from pysilico_server.devices import basler_camera
@@ -146,7 +153,7 @@ class Runner(BaseRunner):
         self._displaySocket = self.rpc().publisherSocket(
             self._zmqPorts.SERVER_DISPLAY_PORT, hwm=1)
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _createDevice(self):
 
         self._createCameraDevice()
@@ -162,7 +169,7 @@ class Runner(BaseRunner):
             self._displaySocket,
             self.rpc())
 
-    @ContextWrapper()
+    @WithVimbaIfNeeded()
     def _runLoop(self):
         self._logRunning()
 
@@ -189,6 +196,7 @@ class Runner(BaseRunner):
                     delattr(self, '_vimbacamera')
                 time.sleep(1)
             except Exception as e:
+                traceback.print_exc()
                 self._logger.fatal('Unhandled exception: '+str(e))
                 traceback.print_exc()
                 self._isTerminated = True
