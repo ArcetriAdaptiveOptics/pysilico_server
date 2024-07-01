@@ -1,5 +1,6 @@
 import os
 import traceback
+import threading
 import time
 from plico.utils.base_runner import BaseRunner
 from pysilico_server.devices.abstract_camera import CameraException
@@ -10,6 +11,7 @@ from pysilico_server.devices.simulated_auxiliary_camera import \
 from plico.utils.logger import Logger
 from plico.utils.control_loop import IntolerantControlLoop
 from plico.utils.decorator import override
+from plico.utils.discovery_server import DiscoveryServer
 from pysilico_server.camera_controller.camera_controller import \
     CameraController
 from plico.rpc.zmq_ports import ZmqPorts
@@ -165,7 +167,7 @@ class Runner(BaseRunner):
     @WithVimbaIfNeeded()
     def _runLoop(self):
         self._logRunning()
-
+        self._startDiscoveryServer()
         self._camera.startAcquisition()
         IntolerantControlLoop(
             self._controller,
@@ -193,6 +195,7 @@ class Runner(BaseRunner):
                 self._logger.fatal('Unhandled exception: '+str(e))
                 traceback.print_exc()
                 self._isTerminated = True
+        self._discoveryServer.die()
         return os.EX_OK
 
     @override
@@ -201,3 +204,13 @@ class Runner(BaseRunner):
         if hasattr(self, '_controller'):
             self._controller.terminate()
 
+    def _startDiscoveryServer(self):
+        port = self._configuration.getValue(self.getConfigurationSection(), 'port')
+        name = self._configuration.getValue(self.getConfigurationSection(), 'name')
+        cameraDeviceSection = self.configuration.getValue(
+           self.getConfigurationSection(), 'camera')
+        deviceName = self._configuration.getValue(cameraDeviceSection, 'name')
+        model = self._configuration.getValue(cameraDeviceSection, 'model')
+        data = {'port': port, 'name': name, 'model': model, 'deviceName': deviceName}
+        self._discoveryServer = DiscoveryServer(data)
+        threading.Thread(target=self._discoveryServer.run).start()
