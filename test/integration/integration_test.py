@@ -180,7 +180,7 @@ class IntegrationTest(unittest.TestCase):
             frame.shape,
             (SimulatedAuxiliaryCamera.SENSOR_H,
              SimulatedAuxiliaryCamera.SENSOR_W, 10))
-        self.assertEqual(float, frame.dtype)
+        self.assertEqual(np.uint16, frame.dtype)
         self.assertNotEqual(0,
                             np.std(frame[0, 0, :]))
 

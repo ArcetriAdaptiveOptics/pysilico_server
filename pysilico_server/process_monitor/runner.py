@@ -14,6 +14,10 @@ from pysilico_server.utils.process_startup_helper import \
 from pysilico_server.utils.constants import Constants
 
 
+# Windows old versions
+if not hasattr(os, 'EX_OK'):
+    os.EX_OK = 0
+
 class Runner(BaseRunner):
 
     RUNNING_MESSAGE = "Monitor of processes is running."
