@@ -147,6 +147,9 @@ class Runner(BaseRunner):
             self._zmqPorts.SERVER_DISPLAY_PORT, hwm=1)
 
     @override
+    def _get_server_type_name(self):
+        return 'pysilico'
+
     def _get_device_class_name(self):
         if hasattr(self, '_camera'):
             return self._camera.__class__.__name__
