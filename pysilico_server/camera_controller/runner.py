@@ -146,16 +146,6 @@ class Runner(BaseRunner):
         self._displaySocket = self.rpc().publisherSocket(
             self._zmqPorts.SERVER_DISPLAY_PORT, hwm=1)
 
-    @override
-    def _get_server_type_name(self):
-        return 'pysilico'
-
-    def _get_device_class_name(self):
-        if hasattr(self, '_camera'):
-            return self._camera.__class__.__name__
-        else:
-            return ''
-
     @WithVimbaIfNeeded()
     def _createDevice(self):
 
@@ -171,6 +161,7 @@ class Runner(BaseRunner):
             self._statusSocket,
             self._displaySocket,
             self.rpc())
+        self._configureDiscoveryServer('pysilico', self._camera.__class__.__name__)
 
     @WithVimbaIfNeeded()
     def _runLoop(self):
