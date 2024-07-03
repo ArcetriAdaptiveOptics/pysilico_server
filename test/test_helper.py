@@ -156,9 +156,7 @@ class TestHelper(object):
 
     @staticmethod
     def terminateSubprocess(process):
-        print('terminateSubprocess')
         exitCode = process.poll()
-        print(f'{exitCode=}')
         if exitCode is not None:
             logging.info("Process with PID %d already dead" % process.pid)
             return
@@ -166,32 +164,25 @@ class TestHelper(object):
         END_TIME = time.time() + 5.0
         done = False
         while not done:
-            print('While not done')
             if process.poll() is not None:
                 done = True
                 break
             elif time.time() > END_TIME:
                 assert False, "Process with PID %d failed to die" % process.pid
-            print('Process poll done')
             time.sleep(0.01)
 
         assert process.returncode is not None
-        print('terminateSubprocess Exiting')
 
     @staticmethod
     def _terminateByUsingPid(process):
         starterPid = process.pid
-        print(f'_terminateByUsingPid {starterPid=}')
         if os.EX_OK == subprocess.call("kill -INT %d" % starterPid,
                                        shell=True):
             try:
-                print('Using poller')
                 Poller(5).check(SubprocessTerminated(process, "<no name>"))
-                print('Done')
                 return
             except Exception:
                 pass
-        print('_terminateByUsingPid Exiting')
 
     @staticmethod
     def dumpFileToStdout(filePath):

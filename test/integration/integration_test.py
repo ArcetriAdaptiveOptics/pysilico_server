@@ -88,7 +88,6 @@ class IntegrationTest(unittest.TestCase):
 
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
-        print('tearDown exiting')
 
     def _createStarterScripts(self):
         ssc = StarterScriptCreator()
@@ -245,7 +244,6 @@ class IntegrationTest(unittest.TestCase):
         self._testServerInfo()
         self._checkBackdoor()
         self._wasSuccessful = True
-        print('testMain done')
 
 
 if __name__ == "__main__":
