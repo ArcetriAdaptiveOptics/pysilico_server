@@ -88,7 +88,6 @@ class IntegrationTest(unittest.TestCase):
 
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
-        raise KeyboardInterrupt
         print('tearDown exiting')
 
     def _createStarterScripts(self):
