@@ -87,7 +87,8 @@ class IntegrationTest(unittest.TestCase):
             TestHelper.terminateSubprocess(self.server)
 
         if self._wasSuccessful:
-            self._removeTestFolderIfItExists()
+            pass
+            #self._removeTestFolderIfItExists()
 
     def _createStarterScripts(self):
         ssc = StarterScriptCreator()
