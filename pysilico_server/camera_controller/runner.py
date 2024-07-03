@@ -74,6 +74,8 @@ class Runner(BaseRunner):
             self._createOcam2KCamera(cameraDeviceSection)
         elif cameraModel == 'basler':
             self._createBaslerCamera(cameraDeviceSection)
+        elif cameraModel == 'cblue_one':
+            self._createCblueOneCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
 
@@ -101,6 +103,11 @@ class Runner(BaseRunner):
         self._camera = AvtCamera(self._vimbacamera, cameraName)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
         self._setBinning(cameraDeviceSection)
+
+    def _createCblueOneCamera(self, cameraDeviceSection):
+        from pysilico_server.devices import cblue_camera
+        cameraName = self.configuration.deviceName(cameraDeviceSection)
+        self._camera = cblue_camera.CblueOneCamera(cameraName)
 
     def _createOcam2KCamera(self, cameraDeviceSection):
         from pysilico_server.devices.ocam2KCamera import Ocam2KCamera
