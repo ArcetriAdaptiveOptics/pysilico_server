@@ -168,11 +168,11 @@ class Runner(BaseRunner):
             self._statusSocket,
             self._displaySocket,
             self.rpc())
+        self._configureDiscoveryServer('pysilico', self._camera.__class__.__name__)
 
     @WithVimbaIfNeeded()
     def _runLoop(self):
         self._logRunning()
-
         self._camera.startAcquisition()
         IntolerantControlLoop(
             self._controller,
