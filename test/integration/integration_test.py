@@ -78,13 +78,13 @@ class IntegrationTest(unittest.TestCase):
             shutil.rmtree(self.TEST_DIR)
 
     def tearDown(self):
+        if self.server is not None:
+            TestHelper.terminateSubprocess(self.server)
+
         TestHelper.dumpFileToStdout(self.PROCESS_MONITOR_LOG_PATH)
         TestHelper.dumpFileToStdout(self.SERVER_1_LOG_PATH)
         TestHelper.dumpFileToStdout(self.SERVER_2_LOG_PATH)
         TestHelper.dumpFileToStdout(self.SERVER_3_LOG_PATH)
-
-        if self.server is not None:
-            TestHelper.terminateSubprocess(self.server)
 
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
