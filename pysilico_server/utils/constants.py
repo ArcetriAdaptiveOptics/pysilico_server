@@ -6,7 +6,6 @@ class Constants:
     THIS_PACKAGE = 'pysilico_server'
 
     PROCESS_MONITOR_CONFIG_SECTION = 'processMonitor'
-    SERVER_CONFIG_SECTION_PREFIX = 'camera'
 
     # TODO: must be the same of console_scripts in setup.py
     START_PROCESS_NAME = 'pysilico_start'
