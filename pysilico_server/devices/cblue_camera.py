@@ -13,9 +13,11 @@ def stop_start(f):
 
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs):
-        FliSdk_V2.Stop(self._context)
-        res = f(self, *args, **kwargs)
-        FliSdk_V2.Start(self._context)
+        try:
+            FliSdk_V2.Stop(self._context)
+            res = f(self, *args, **kwargs)
+        finally:
+            FliSdk_V2.Start(self._context)
         return res
     
     return wrapper
