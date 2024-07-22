@@ -131,14 +131,12 @@ class CblueOneCamera(AbstractCamera):
         ok = FliSdk_V2.FliCblueSfnc.SetWidth(self._context, cols_in_px)
 
     @synchronized("_mutex")
-    @stop_start
     def get_rows_max(self):
-        ok = FliSdk_V2.FliCblueSfnc.GetHeightMax(self._context)
+        return FliSdk_V2.FliCblueSfnc.GetHeightMax(self._context)[1]
 
     @synchronized("_mutex")
-    @stop_start
     def get_cols_max(self):
-        ok = FliSdk_V2.FliCblueSfnc.GetWidthMax(self._context)
+        return FliSdk_V2.FliCblueSfnc.GetWidthMax(self._context)[1]
 
     @override
     def dtype(self):
@@ -179,6 +177,16 @@ class CblueOneCamera(AbstractCamera):
     def exposureTime(self):
         result = FliSdk_V2.FliCblueSfnc.GetExposureTime(self._context)
         return result[1] * 1e-3
+
+    @synchronized("_mutex")
+    @stop_start
+    def set_pixel_format(self, pixel_format):
+        ok = FliSdk_V2.FliGenicamCamera.SetStringFeature(self._context, "PixelFormat", pixel_format)
+        self._logger.notice(f'Pixel format set to {pixel_format}')
+
+    @synchronized("_mutex")
+    def get_pixel_format(self):
+        return FliSdk_V2.FliGenicamCamera.GetStringFeature(self._context, "PixelFormat")[1]
 
     @synchronized("_mutex")
     @override
@@ -268,24 +276,8 @@ class CblueOneCamera(AbstractCamera):
 
     @override
     def setParameter(self, name, value):
-        if name == 'rows':
-            self.set_rows(value)
-        elif name == 'cols':
-            self.set_cols(value)
-        elif name == 'coolingSetPoint':
-            self.set_device_cooling_setpoint(value)
-        elif name == 'conversionEfficiency':
-            self.set_conversion_efficiency(value)
-        elif name == 'gain':
-            self.set_gain(value)
-        else:
-            raise Exception('Parameter %s is not valid' % str(name))
+        pass
 
     @override
     def getParameters(self):
-        return {'rows': self.rows(),
-                'cols': self.cols(),
-                'coolingSetPoint': self.get_device_cooling_setpoint(),
-                'conversionEfficiency': self.get_conversion_efficiency(),
-                'gain': self.get_gain(),
-                }
+        return {}
