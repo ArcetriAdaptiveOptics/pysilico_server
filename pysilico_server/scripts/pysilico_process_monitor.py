@@ -17,6 +17,5 @@ def main():
 
 
 if __name__ == '__main__':
-    runner = ProcessMonitorRunner(Constants.SERVER_PROCESS_NAME)
-    sys.exit(runner.start(sys.argv))
+    main()
 
