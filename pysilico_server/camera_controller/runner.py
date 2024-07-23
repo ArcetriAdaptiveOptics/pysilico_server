@@ -17,6 +17,11 @@ import functools
 import traceback
 
 
+# Windows old versions
+if not hasattr(os, 'EX_OK'):
+    os.EX_OK = 0
+
+
 def WithVimbaIfNeeded():
     def wrapperFunc(f):
         @functools.wraps(f)

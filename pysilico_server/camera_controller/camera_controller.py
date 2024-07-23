@@ -202,3 +202,10 @@ class CameraController(Stepable,
         with self._mutexStatus:
             self._cameraStatus = None
 
+    def __getattr__(self, attrname):
+        '''Forward any unknown calls to the camera device'''
+        if hasattr(self._camera, attrname):
+            return getattr(self._camera, attrname)
+        else:
+            raise AttributeError
+

@@ -13,10 +13,10 @@ from plico.rpc.zmq_remote_procedure_call import ZmqRemoteProcedureCall
 from plico.utils.logger import Logger
 from plico.rpc.sockets import Sockets
 from plico.rpc.zmq_ports import ZmqPorts
+from plico.utils.process_monitor_runner import RUNNING_MESSAGE as MONITOR_RUNNING_MESSAGE
 from pysilico_server.utils.constants import Constants
 from pysilico_server.utils.starter_script_creator import StarterScriptCreator
 from pysilico_server.utils.process_startup_helper import ProcessStartUpHelper
-from pysilico_server.process_monitor.runner import Runner as ProcessMonitorRunner
 from pysilico_server.camera_controller.runner import Runner
 from pysilico.client.camera_client import CameraClient
 from pysilico.client.abstract_camera_client import SnapshotEntry
@@ -35,12 +35,6 @@ class IntegrationTest(unittest.TestCase):
     CALIB_FOLDER = 'test/integration/calib'
     CONF_SECTION = Constants.PROCESS_MONITOR_CONFIG_SECTION
     PROCESS_MONITOR_LOG_PATH = os.path.join(LOG_DIR, "%s.log" % CONF_SECTION)
-    SERVER_1_LOG_PATH = os.path.join(
-        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
-    SERVER_2_LOG_PATH = os.path.join(
-        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
-    SERVER_3_LOG_PATH = os.path.join(
-        LOG_DIR, '%s%d.log' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
 
     BIN_DIR = os.path.join(TEST_DIR, "apps", "bin")
     SOURCE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
@@ -56,9 +50,18 @@ class IntegrationTest(unittest.TestCase):
         self.configuration = Configuration()
         self.configuration.load(self.CONF_FILE)
         self.rpc = ZmqRemoteProcedureCall()
+        self._server_config_prefix = self.configuration.getValue(
+                                       Constants.PROCESS_MONITOR_CONFIG_SECTION,
+                                       'server_config_prefix')
 
         calibrationRootDir = self.configuration.calibrationRootDir()
         self._setUpCalibrationTempFolder(calibrationRootDir)
+        self.CONTROLLER_1_LOGFILE = os.path.join(self.LOG_DIR, '%s%d.log' % (self._server_config_prefix, 1))
+        self.CONTROLLER_2_LOGFILE = os.path.join(self.LOG_DIR, '%s%d.log' % (self._server_config_prefix, 2))
+        self.CONTROLLER_3_LOGFILE = os.path.join(self.LOG_DIR, '%s%d.log' % (self._server_config_prefix, 3))
+        self.PROCESS_MONITOR_PORT = self.configuration.getValue(
+                                       Constants.PROCESS_MONITOR_CONFIG_SECTION,
+                                       'port', getint=True)
 
     def _setUpBasicLogging(self):
         logging.basicConfig(level=logging.DEBUG)
@@ -82,9 +85,9 @@ class IntegrationTest(unittest.TestCase):
             TestHelper.terminateSubprocess(self.server)
 
         TestHelper.dumpFileToStdout(self.PROCESS_MONITOR_LOG_PATH)
-        TestHelper.dumpFileToStdout(self.SERVER_1_LOG_PATH)
-        TestHelper.dumpFileToStdout(self.SERVER_2_LOG_PATH)
-        TestHelper.dumpFileToStdout(self.SERVER_3_LOG_PATH)
+        TestHelper.dumpFileToStdout(self.CONTROLLER_1_LOGFILE)
+        TestHelper.dumpFileToStdout(self.CONTROLLER_2_LOGFILE)
+        TestHelper.dumpFileToStdout(self.CONTROLLER_3_LOGFILE)
 
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
@@ -95,7 +98,7 @@ class IntegrationTest(unittest.TestCase):
         ssc.setPythonPath(self.SOURCE_DIR)
         ssc.setConfigFileDestination(self.CONF_FILE)
         numCameras = len(self.configuration.numberedSectionList(
-            Constants.SERVER_CONFIG_SECTION_PREFIX))
+            self._server_config_prefix))
         ssc.installExecutables(numCameras)
 
     def _startProcesses(self):
@@ -105,30 +108,30 @@ class IntegrationTest(unittest.TestCase):
              self.CONF_FILE,
              self.CONF_SECTION])
         Poller(5).check(MessageInFileProbe(
-            ProcessMonitorRunner.RUNNING_MESSAGE, self.PROCESS_MONITOR_LOG_PATH))
+            MONITOR_RUNNING_MESSAGE(Constants.SERVER_PROCESS_NAME), self.PROCESS_MONITOR_LOG_PATH))
 
     def _testProcessesActuallyStarted(self):
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, self.SERVER_1_LOG_PATH))
+            Runner.RUNNING_MESSAGE, self.CONTROLLER_1_LOGFILE))
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, self.SERVER_2_LOG_PATH))
+            Runner.RUNNING_MESSAGE, self.CONTROLLER_2_LOGFILE))
         Poller(5).check(MessageInFileProbe(
-            Runner.RUNNING_MESSAGE, self.SERVER_3_LOG_PATH))
+            Runner.RUNNING_MESSAGE, self.CONTROLLER_3_LOGFILE))
 
     def _buildClients(self):
         ports1 = ZmqPorts.fromConfiguration(
             self.configuration,
-            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 1))
+            '%s%d' % (self._server_config_prefix, 1))
         self.client1 = CameraClient(
             self.rpc, Sockets(ports1, self.rpc))
         ports2 = ZmqPorts.fromConfiguration(
             self.configuration,
-            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 2))
+            '%s%d' % (self._server_config_prefix, 2))
         self.client2 = CameraClient(
             self.rpc, Sockets(ports2, self.rpc))
         ports3 = ZmqPorts.fromConfiguration(
             self.configuration,
-            '%s%d' % (Constants.SERVER_CONFIG_SECTION_PREFIX, 3))
+            '%s%d' % (self._server_config_prefix, 3))
         self.client3 = CameraClient(
             self.rpc, Sockets(ports3, self.rpc))
 
