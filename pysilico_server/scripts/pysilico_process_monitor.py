@@ -6,7 +6,9 @@ from pysilico_server.utils.constants import Constants
 
 
 def main():
-    runner = ProcessMonitorRunner(Constants.SERVER_PROCESS_NAME)
+    prefix = Constants.DEFAULT_SERVER_CONFIG_SECTION_PREFIX
+    runner = ProcessMonitorRunner(Constants.SERVER_PROCESS_NAME,
+                                  default_server_config_prefix=prefix)
     configFileManager = ConfigFileManager(Constants.APP_NAME,
                                           Constants.APP_AUTHOR,
                                           Constants.THIS_PACKAGE)
