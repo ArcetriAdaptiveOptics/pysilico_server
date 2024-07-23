@@ -198,3 +198,10 @@ class BaslerCamera(AbstractCamera):
         for callback in self._callbackList:
             callback(self._lastValidFrame)
 
+    @override
+    def setParameter(self, name, value):
+        pass
+
+    @override
+    def getParameters(self):
+        return {}
