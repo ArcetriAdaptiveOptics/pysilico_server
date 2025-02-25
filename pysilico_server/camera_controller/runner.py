@@ -102,12 +102,19 @@ class Runner(BaseRunner):
                                                 'ip_address')
         streamBytesPerSecond = self.configuration.getValue(
             cameraDeviceSection, 'streambytespersecond', getint=True)
+        try:
+            pixelFormat = self.configuration.getValue(
+                cameraDeviceSection, 'pixel_format')
+        except:
+            pixelFormat = 'Mono12'
         cameraName = self.configuration.deviceName(cameraDeviceSection)
         with Vimba.get_instance() as v:
             self._vimbacamera = v.get_camera_by_id(ipAddress)
         self._camera = AvtCamera(self._vimbacamera, cameraName)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
+        self._camera.setPixelFormat(pixelFormat)
         self._setBinning(cameraDeviceSection)
+        self._camera.logCameraInfo()
 
     def _createCblueOneCamera(self, cameraDeviceSection):
         from pysilico_server.devices import cblue_camera

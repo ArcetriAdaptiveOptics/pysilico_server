@@ -77,13 +77,9 @@ class AvtCamera(AbstractCamera):
 
         self._resetBinningAndOffset()
 
-        if self.pixelFormat() == PixelFormat.Mono12:
-            self.BYTES_PER_PIXEL = 2
-            self._dtype = np.uint16
-        else:
-            raise Exception('Format %s is not supported' % self.pixelFormat())
-
-        self._logCameraInfo()
+        self.setPixelFormat('Mono8')
+        if hasattr(self._camera, 'GVSPPacketSize'):
+            self._camera.GVSPPacketSize.set(1500)
         self._logger.notice('AVT camera initialized')
 
     @logEnterAndExit('Entering _createFrames',
@@ -131,8 +127,6 @@ class AvtCamera(AbstractCamera):
         self._camera.OffsetY.set(0)
         self._setHeight()
         self._setWidth()
-        self._camera.set_pixel_format(PixelFormat.Mono12)
-        self._camera.GVSPPacketSize.set(1500)
         # Not all cameras have this
         #self._timeStampTickFrequency = self._camera.GevTimestampTickFrequency.get()
         self._logger.notice(
@@ -171,7 +165,7 @@ class AvtCamera(AbstractCamera):
 
     @synchronized("_mutex")
     @withCamera()
-    def _logCameraInfo(self):
+    def logCameraInfo(self):
         self._logger.notice('Camera: %s at %s - ID: %s' % (
                             self.deviceModelName(),
                             self.ipAddress(),
@@ -201,6 +195,21 @@ class AvtCamera(AbstractCamera):
                 return
         self._logger.notice('Camera data rate set to %4.1f MB/s'
                              % (streamBytesPerSecond / 1e6))
+
+    @synchronized("_mutex")
+    @withCamera()
+    def setPixelFormat(self, pixelFormat):
+        if pixelFormat == 'Mono8':
+            self._camera.set_pixel_format(PixelFormat.Mono8)
+            self._dtype = np.uint8
+        elif pixelFormat == 'Mono10': 
+            self._camera.set_pixel_format(PixelFormat.Mono10)
+            self._dtype = np.uint16
+        elif pixelFormat == 'Mono12':
+            self._camera.set_pixel_format(PixelFormat.Mono12)
+            self._dtype = np.uint16
+        else:
+            raise Exception('Unsupported pixel format %s' % pixelFormat)
 
     @synchronized("_mutex")
     @withCamera()
