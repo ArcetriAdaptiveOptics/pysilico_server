@@ -160,7 +160,7 @@ class BaslerCamera(AbstractCamera):
         self._camera.TriggerSelector.SetValue("FrameStart")
         self._camera.PixelFormat.SetValue("Mono10p")
         self._camera.AcquisitionMode.SetValue("Continuous")
-        self._camera.GevSCPD.SetValue(1500)
+        self._camera.GevSCPD.SetValue(10000)
         self._camera.TriggerMode.SetValue("Off")
         self._camera.StartGrabbing(pylon.GrabStrategy_LatestImages, pylon.GrabLoop_ProvidedByInstantCamera)
         self._logger.notice('Continuous acquisition started')
