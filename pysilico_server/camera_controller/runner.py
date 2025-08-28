@@ -7,6 +7,7 @@ from pysilico_server.devices.simulated_camera import \
     SimulatedPyramidWfsCamera
 from pysilico_server.devices.simulated_auxiliary_camera import \
     SimulatedAuxiliaryCamera
+from pysilico_server.devices.baumer_camera import BaumerCamera
 from plico.utils.logger import Logger
 from plico.utils.control_loop import IntolerantControlLoop
 from plico.utils.decorator import override
@@ -81,6 +82,8 @@ class Runner(BaseRunner):
             self._createBaslerCamera(cameraDeviceSection)
         elif cameraModel == 'cblue_one':
             self._createCblueOneCamera(cameraDeviceSection)
+        elif cameraModel == 'baumer':
+            self._createBaumerCamera(cameraDeviceSection)
         else:
             raise KeyError('Unsupported camera model %s' % cameraModel)
 
@@ -120,6 +123,13 @@ class Runner(BaseRunner):
         from pysilico_server.devices import cblue_camera
         cameraName = self.configuration.deviceName(cameraDeviceSection)
         self._camera = cblue_camera.CblueOneCamera(cameraName)
+
+    def _createBaumerCamera(self, cameraDeviceSection):
+        cameraName = self.configuration.deviceName(cameraDeviceSection)
+        serialNumber = self.configuration.getValue(cameraDeviceSection, 'serial_number')
+        ipAddress = self.configuration.getValue(cameraDeviceSection, 'ip_address')
+        self._camera = BaumerCamera(cameraName, serial_number=serialNumber, ip_address=ipAddress)
+        self._setBinning(cameraDeviceSection)
 
     def _createOcam2KCamera(self, cameraDeviceSection):
         from pysilico_server.devices.ocam2KCamera import Ocam2KCamera

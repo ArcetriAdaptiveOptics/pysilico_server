@@ -9,6 +9,13 @@
 
 pysilico is an application to control [Allied AVT/Prosilica][allied] cameras (and possibly other GigE cameras) under the [plico][plico] environment.
 
+## Baumer Camera Support
+
+This server now supports Baumer VCX cameras through the `neoapi` SDK. Key features include:
+
+*   **Pixel Format Configuration**: Prioritizes `Mono12`, then `BGR8`, and falls back to `Mono8` based on camera availability.
+*   **Region of Interest (ROI) Management**: Supports defining and acquiring frames from multiple ROIs. Individual ROI frames can be accessed, and the camera can be reverted to full-frame acquisition.
+
 See [pysilico][pysilico] for installation and usage
 
 [plico]: https://github.com/ArcetriAdaptiveOptics/plico

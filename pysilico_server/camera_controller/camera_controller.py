@@ -202,6 +202,18 @@ class CameraController(Stepable,
         with self._mutexStatus:
             self._cameraStatus = None
 
+    @logEnterAndExit('Entering setRois', 'Executed setRois')
+    def setRois(self, rois):
+        self._camera.set_rois(rois)
+        with self._mutexStatus:
+            self._cameraStatus = None
+
+    def getRois(self):
+        return self._camera.get_rois()
+
+    def getRoiFrames(self):
+        return self._camera.get_roi_frames()
+
     def __getattr__(self, attrname):
         '''Forward any unknown calls to the camera device'''
         if hasattr(self._camera, attrname):
