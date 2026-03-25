@@ -8,10 +8,17 @@ from plico.utils.decorator import logEnterAndExit, \
 from pysilico_server.devices.abstract_camera import AbstractCamera
 from plico.utils.logger import Logger
 from pysilico.types.camera_frame import CameraFrame
-from vimba import Vimba
 import functools
-from vimba.frame import PixelFormat, FrameStatus
-from vimba.error import VimbaFeatureError
+
+try:
+    from vimba import Vimba
+    from vimba.frame import PixelFormat, FrameStatus
+    from vimba.error import VimbaFeatureError
+except ImportError:
+    from vmbpy import VmbSystem as Vimba
+    from vmbpy.frame import PixelFormat, FrameStatus
+    from vmbpy.error import VmbFeatureError as VimbaFeatureError
+
 
 
 def withVimba():

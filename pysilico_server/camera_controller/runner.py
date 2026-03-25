@@ -23,23 +23,39 @@ if not hasattr(os, 'EX_OK'):
 
 
 def WithVimbaIfNeeded():
+    '''
+    Decorator that starts the Vimba API
+    if self._use_vimba_wrapper has been set to True
+
+    Intended for decoration of methods that operate
+    on generic cameras, which might be controlled by Vimba.
+    '''
     def wrapperFunc(f):
         @functools.wraps(f)
         def wrapper_vimba(self, *args, **kwds):
-            import vimba
-            # First with ... starts the Vimba API.
-            # If a camera has been setup, the second with...
+            try:
+                from vimba import Vimba
+                from vimba.error import VimbaCameraError
+                from vimba.c_binding.vimba_common import VimbaCError
+                from vimba.error import VimbaFeatureError
+            except ImportError:
+                from vmbpy import VmbSystem as Vimba
+                from vmbpy import VmbCameraError as VimbaCameraError
+                from vmbpy.c_binding.vmb_common import VmbCError as VimbaCError
+                from vmbpy.error import VmbFeatureError as VimbaFeatureError
+            # First "with" statement starts the Vimba API.
+            # If a camera has been setup, the second "with" statement
             # will run the method into that camera context.
             try:
-                with vimba.Vimba.get_instance():
+                with Vimba.get_instance():
                     if hasattr(self, '_vimbacamera'):
                         with self._vimbacamera:
                             return f(self, *args, **kwds)
                     else:
                         return f(self, *args, **kwds)
-            except (vimba.error.VimbaCameraError,
-                    vimba.c_binding.vimba_common.VimbaCError,
-                    vimba.error.VimbaFeatureError) as e:
+            except (VimbaCameraError,
+                    VimbaCError,
+                    VimbaFeatureError) as e:
                 raise CameraException(e.__str__())
 
         def wrapper_generic(self, *args, **kwds):
@@ -97,7 +113,10 @@ class Runner(BaseRunner):
     @WithVimbaIfNeeded()
     def _createAvtCamera(self, cameraDeviceSection):
         from pysilico_server.devices.avtCamera import AvtCamera
-        from vimba import Vimba
+        try:
+            from vimba import Vimba
+        except ImportError:
+            from vmbpy import VmbSystem as Vimba
         ipAddress = self.configuration.getValue(cameraDeviceSection,
                                                 'ip_address')
         streamBytesPerSecond = self.configuration.getValue(
