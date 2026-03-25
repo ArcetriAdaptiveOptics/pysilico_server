@@ -14,10 +14,12 @@ try:
     from vimba import Vimba
     from vimba.frame import PixelFormat, FrameStatus
     from vimba.error import VimbaFeatureError
+    using_vmbpy = False
 except ImportError:
     from vmbpy import VmbSystem as Vimba
     from vmbpy.frame import PixelFormat, FrameStatus
     from vmbpy.error import VmbFeatureError as VimbaFeatureError
+    using_vmbpy = True
 
 
 
@@ -194,7 +196,7 @@ class AvtCamera(AbstractCamera):
                 self._camera.DeviceLinkThroughputLimit.set(streamBytesPerSecond)
                 self._camera.DeviceLinkThroughputLimitMode.set('On')
                 mode_entry = self._camera.DeviceLinkThroughputLimitMode.get()
-                self._logger.notice('Device Link Trhougput Mode set to: '+str(mode_entry))
+                self._logger.notice('Device Link Throughput Mode set to: '+str(mode_entry))
             except AttributeError:
                 # If we can't set it, return silently and
                 # avoid the logging notice
@@ -363,6 +365,12 @@ class AvtCamera(AbstractCamera):
         for callback in self._callbackList:
             callback(self._lastValidFrame)
 
+    def _frame_callback_with_stream(self, camera, stream, frame):
+        '''Callback with signature accepted by VmbPy:
+           adds stream argument and makes sure it returns None
+           '''
+        self._frame_callback(camera, frame)
+
     def _frame_callback(self, camera, frame):
         try:
             # self._logger.debug("Got frame %d at time %.3f" % (
@@ -427,8 +435,19 @@ class AvtCamera(AbstractCamera):
             self._camera.SyncOutSource.set('Exposing')
         except AttributeError:
             pass
+        if using_vmbpy:
+            callback = self._frame_callback_with_stream
+            try:
+                stream = self._camera.get_streams()[0]
+                stream.GVSPAdjustPacketSize.run()
+                while not stream.GVSPAdjustPacketSize.is_done():
+                    pass
+            except (AttributeError, VimbaFeatureError):
+                pass
+        else:
+            callback = self._frame_callback
         self._camera.start_streaming(
-            handler=self._frame_callback, buffer_count=10)
+            handler=callback, buffer_count=10)
         if self._isAlvium:
             self._camera.TriggerSoftware.run()
         self._logger.notice('Continuous acquisition started')
@@ -455,9 +474,12 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def ipAddress(self):
-        ip = self._camera.GevCurrentIPAddress.get()
-        return '.'.join([str(int('0x' + x, 16)) for x in reversed(
-            textwrap.wrap(hex(ip), 2)[1:])])
+        try:
+            ip = self._camera.GevCurrentIPAddress.get()
+            return '.'.join([str(int('0x' + x, 16)) for x in reversed(
+                textwrap.wrap(hex(ip), 2)[1:])])
+        except AttributeError:
+            return '0.0.0.0'
 
     @synchronized("_mutex")
     @withCamera()

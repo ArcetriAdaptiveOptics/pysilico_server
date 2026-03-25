@@ -119,8 +119,11 @@ class Runner(BaseRunner):
             from vmbpy import VmbSystem as Vimba
         ipAddress = self.configuration.getValue(cameraDeviceSection,
                                                 'ip_address')
-        streamBytesPerSecond = self.configuration.getValue(
-            cameraDeviceSection, 'streambytespersecond', getint=True)
+        try:
+            streamBytesPerSecond = self.configuration.getValue(
+                cameraDeviceSection, 'streambytespersecond', getint=True)
+        except:
+            streamBytesPerSecond = 5000000
         try:
             pixelFormat = self.configuration.getValue(
                 cameraDeviceSection, 'pixel_format')
