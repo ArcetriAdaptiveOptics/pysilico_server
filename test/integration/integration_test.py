@@ -80,6 +80,20 @@ class IntegrationTest(unittest.TestCase):
         if os.path.exists(self.TEST_DIR):
             shutil.rmtree(self.TEST_DIR)
 
+    
+    def _delete_clients(self):
+        if hasattr(self, 'client1'):
+            self.client1.terminate()
+            del self.client1
+        if hasattr(self, 'client2'):
+            self.client2.terminate()
+            del self.client2
+        if hasattr(self, 'client3'):
+            self.client3.terminate()
+            del self.client3
+        import gc
+        gc.collect()
+
     def tearDown(self):
         if self.server is not None:
             TestHelper.terminateSubprocess(self.server)
@@ -88,6 +102,9 @@ class IntegrationTest(unittest.TestCase):
         TestHelper.dumpFileToStdout(self.CONTROLLER_1_LOGFILE)
         TestHelper.dumpFileToStdout(self.CONTROLLER_2_LOGFILE)
         TestHelper.dumpFileToStdout(self.CONTROLLER_3_LOGFILE)
+
+        self._delete_clients()
+        self.rpc.terminate()
 
         if self._wasSuccessful:
             self._removeTestFolderIfItExists()
