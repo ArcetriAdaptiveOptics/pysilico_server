@@ -106,7 +106,7 @@ class CblueOneCamera(AbstractCamera):
              index = self.getFrameCounter()
              while index == self._lastIndex:
                   if time.time()-start > timeout:
-                      raise TimeoutError('Timeout waiting for Ocam2K frames')
+                      raise TimeoutError('Timeout waiting for CBlue frames')
                   index = self.getFrameCounter()
              self._lastIndex = index
  
