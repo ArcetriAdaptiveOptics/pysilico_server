@@ -356,7 +356,10 @@ class AvtCamera(AbstractCamera):
         for callback in self._callbackList:
             callback(self._lastValidFrame)
 
-    def _frame_callback(self, camera, frame):
+    def _frame_callback(self, camera, stream_or_frame, frame=None):
+        # VmbPy (VimbaX) passes (camera, stream, frame); old Vimba passes (camera, frame)
+        if frame is None:
+            frame = stream_or_frame
         try:
             # self._logger.debug("Got frame %d at time %.3f" % (
             #    self._counter, frame.get_timestamp() /
