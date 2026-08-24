@@ -44,7 +44,7 @@ class CblueOneCamera(AbstractCamera):
 
     def _find_camera(self):
         self._logger.notice('Detection of grabbers...')
-        self._grabbers = FliSdk_V2.DetectGrabbers(self._context)
+        self._grabbers = [g for g in FliSdk_V2.DetectGrabbers(self._context) if g]
         if len(self._grabbers) == 0:
             raise Exception('No grabber detected, exit.')
         self._logger.notice('Done.')
@@ -53,7 +53,7 @@ class CblueOneCamera(AbstractCamera):
             self._logger.notice("- " + s)
 
         self._logger.notice('Detection of cameras...')
-        self._cameras = FliSdk_V2.DetectCameras(self._context)
+        self._cameras = [c for c in FliSdk_V2.DetectCameras(self._context) if c]
         if len(self._cameras) == 0:
             raise Exception('No camera detected, exit.')
         self._logger.notice('Done.')
@@ -62,7 +62,15 @@ class CblueOneCamera(AbstractCamera):
             self._logger.notice("- " + s)       
 
     def _set_camera(self, camera_name):
-        ok = FliSdk_V2.SetCamera(self._context, camera_name)
+        # The FLI SDK uses full camera identifiers like "C-BLUE ONE 1.7 MP#serial#grabber".
+        # Find the first detected camera whose name starts with camera_name, falling back
+        # to the first detected camera if no match is found.
+        sdk_name = next(
+            (c for c in self._cameras if c.startswith(camera_name)),
+            self._cameras[0]
+        )
+        self._logger.notice(f'Using SDK camera name: {sdk_name}')
+        ok = FliSdk_V2.SetCamera(self._context, sdk_name)
         result = FliSdk_V2.SetMode(self._context, FliSdk_V2.Mode.Full)
         self._logger.notice(f'Setting mode full:{result}')
         ok = FliSdk_V2.Update(self._context)
@@ -278,7 +286,48 @@ class CblueOneCamera(AbstractCamera):
 
     @override
     def setParameter(self, name, value):
-        pass
+        if name == 'gain':
+            self.set_gain(float(value))
+        elif name in ('rows', 'cols', 'offset_x', 'offset_y'):
+            self._set_roi_param(name, value)
+        elif name == 'fps':
+            self._set_fps(float(value))
+        else:
+            raise KeyError(f'Unknown parameter: {name}')
+
+    @synchronized("_mutex")
+    @stop_start
+    def _set_roi_param(self, name, value):
+        """Set a single ROI parameter with a Stop/Start cycle."""
+        if name == 'rows':
+            FliSdk_V2.FliCblueSfnc.SetHeight(self._context, int(value))
+        elif name == 'cols':
+            FliSdk_V2.FliCblueSfnc.SetWidth(self._context, int(value))
+        elif name == 'offset_x':
+            FliSdk_V2.FliCblueSfnc.SetOffsetX(self._context, int(value))
+        elif name == 'offset_y':
+            FliSdk_V2.FliCblueSfnc.SetOffsetY(self._context, int(value))
+
+    @synchronized("_mutex")
+    @stop_start
+    def set_roi(self, offset_x, offset_y, width, height):
+        """Set ROI atomically in a single Stop/Start cycle."""
+        FliSdk_V2.FliCblueSfnc.SetOffsetX(self._context, 0)
+        FliSdk_V2.FliCblueSfnc.SetOffsetY(self._context, 0)
+        FliSdk_V2.FliCblueSfnc.SetWidth(self._context, int(width))
+        FliSdk_V2.FliCblueSfnc.SetHeight(self._context, int(height))
+        FliSdk_V2.FliCblueSfnc.SetOffsetX(self._context, int(offset_x))
+        FliSdk_V2.FliCblueSfnc.SetOffsetY(self._context, int(offset_y))
+
+    @synchronized("_mutex")
+    @stop_start
+    def _set_fps(self, fps):
+        """Set acquisition frame rate."""
+        FliSdk_V2.FliCblueSfnc.SetAcquisitionFrameRate(self._context, fps)
+
+    def set_fps(self, fps):
+        """Public alias used by setParameter."""
+        self._set_fps(fps)
 
     @override
     def getParameters(self):

@@ -110,7 +110,8 @@ class Runner(BaseRunner):
         cameraName = self.configuration.deviceName(cameraDeviceSection)
         with Vimba.get_instance() as v:
             self._vimbacamera = v.get_camera_by_id(ipAddress)
-        self._camera = AvtCamera(self._vimbacamera, cameraName)
+        self._camera = AvtCamera(self._vimbacamera, cameraName,
+                                 configured_ip=ipAddress)
         self._camera.setStreamBytesPerSecond(streamBytesPerSecond)
         self._camera.setPixelFormat(pixelFormat)
         self._setBinning(cameraDeviceSection)

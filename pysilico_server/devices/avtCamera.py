@@ -51,9 +51,10 @@ class AvtCamera(AbstractCamera):
     VIMBA_DECIMATION_VERTICAL = 'DecimationVertical'
     VIMBA_FRAME_STATUS_COMPLETE = 0
 
-    def __init__(self, vimbacamera, name):
+    def __init__(self, vimbacamera, name, configured_ip=None):
         self._name = name
         self._camera = vimbacamera
+        self._configured_ip = configured_ip
         self._logger = Logger.of('AvtCamera')
         self._binning = 1
         self._counter = 0
@@ -451,9 +452,47 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def ipAddress(self):
-        ip = self._camera.GevCurrentIPAddress.get()
-        return '.'.join([str(int('0x' + x, 16)) for x in reversed(
-            textwrap.wrap(hex(ip), 2)[1:])])
+        """Return camera IP as dotted string.
+
+        VimbaX / some GigE cameras do not expose GevCurrentIPAddress; try
+        common feature names, then configured IP / camera id.
+        """
+        feature_names = (
+            'GevCurrentIPAddress',
+            'GevPersistentIPAddress',
+            'DeviceIPAddress',
+        )
+        for feat_name in feature_names:
+            feat = None
+            try:
+                feat = getattr(self._camera, feat_name)
+            except AttributeError:
+                if hasattr(self._camera, 'get_feature_by_name'):
+                    try:
+                        feat = self._camera.get_feature_by_name(feat_name)
+                    except Exception:
+                        feat = None
+            if feat is None:
+                continue
+            try:
+                ip = feat.get()
+            except Exception:
+                continue
+            if isinstance(ip, str):
+                return ip
+            try:
+                # Packed IPv4 integer (legacy Vimba encoding)
+                return '.'.join([str(int('0x' + x, 16)) for x in reversed(
+                    textwrap.wrap(hex(ip), 2)[1:])])
+            except Exception:
+                continue
+
+        if self._configured_ip:
+            return str(self._configured_ip)
+        try:
+            return str(self._camera.get_id())
+        except Exception:
+            return 'unknown'
 
     @synchronized("_mutex")
     @withCamera()
