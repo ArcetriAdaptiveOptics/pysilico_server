@@ -51,9 +51,10 @@ class AvtCamera(AbstractCamera):
     VIMBA_DECIMATION_VERTICAL = 'DecimationVertical'
     VIMBA_FRAME_STATUS_COMPLETE = 0
 
-    def __init__(self, vimbacamera, name):
+    def __init__(self, vimbacamera, name, configured_ip=None):
         self._name = name
         self._camera = vimbacamera
+        self._configured_ip = configured_ip
         self._logger = Logger.of('AvtCamera')
         self._binning = 1
         self._counter = 0
@@ -61,6 +62,7 @@ class AvtCamera(AbstractCamera):
         self._callbackList = []
         self._mutex = threading.RLock()
         self._lastValidFrame = CameraFrame(np.zeros((4, 4)), counter=0)
+        self._param_cache = {}
         self._initialize()
 
     @withVimba()
@@ -135,6 +137,7 @@ class AvtCamera(AbstractCamera):
             % (self._binning, self._camera.Width.get(),
                self._camera.Height.get(),
                self._camera.OffsetX.get(), self._camera.OffsetY.get()))
+        self._store_param_cache_unlocked()
 
         if restartAcquistion:
             self.startAcquisition()
@@ -356,7 +359,10 @@ class AvtCamera(AbstractCamera):
         for callback in self._callbackList:
             callback(self._lastValidFrame)
 
-    def _frame_callback(self, camera, frame):
+    def _frame_callback(self, camera, stream_or_frame, frame=None):
+        # VmbPy (VimbaX) passes (camera, stream, frame); old Vimba passes (camera, frame)
+        if frame is None:
+            frame = stream_or_frame
         try:
             # self._logger.debug("Got frame %d at time %.3f" % (
             #    self._counter, frame.get_timestamp() /
@@ -448,9 +454,47 @@ class AvtCamera(AbstractCamera):
     @synchronized("_mutex")
     @withCamera()
     def ipAddress(self):
-        ip = self._camera.GevCurrentIPAddress.get()
-        return '.'.join([str(int('0x' + x, 16)) for x in reversed(
-            textwrap.wrap(hex(ip), 2)[1:])])
+        """Return camera IP as dotted string.
+
+        VimbaX / some GigE cameras do not expose GevCurrentIPAddress; try
+        common feature names, then configured IP / camera id.
+        """
+        feature_names = (
+            'GevCurrentIPAddress',
+            'GevPersistentIPAddress',
+            'DeviceIPAddress',
+        )
+        for feat_name in feature_names:
+            feat = None
+            try:
+                feat = getattr(self._camera, feat_name)
+            except AttributeError:
+                if hasattr(self._camera, 'get_feature_by_name'):
+                    try:
+                        feat = self._camera.get_feature_by_name(feat_name)
+                    except Exception:
+                        feat = None
+            if feat is None:
+                continue
+            try:
+                ip = feat.get()
+            except Exception:
+                continue
+            if isinstance(ip, str):
+                return ip
+            try:
+                # Packed IPv4 integer (legacy Vimba encoding)
+                return '.'.join([str(int('0x' + x, 16)) for x in reversed(
+                    textwrap.wrap(hex(ip), 2)[1:])])
+            except Exception:
+                continue
+
+        if self._configured_ip:
+            return str(self._configured_ip)
+        try:
+            return str(self._camera.get_id())
+        except Exception:
+            return 'unknown'
 
     @synchronized("_mutex")
     @withCamera()
@@ -483,12 +527,143 @@ class AvtCamera(AbstractCamera):
         except Exception as e:
             self._logger.warn('Failed to close camera:'+str(e))
 
+    def _pause_acquisition(self):
+        """Stop streaming if running. Returns True if restart is needed.
+
+        Must not be called while already inside a ``withCamera`` context —
+        stop/start open their own camera contexts.
+        """
+        if self._isContinuouslyAcquiring:
+            self.stopAcquisition()
+            return True
+        return False
+
+    def _resume_acquisition(self, was_acquiring):
+        if was_acquiring:
+            self.startAcquisition()
+
+    def _gain_feature(self):
+        """Return the Vimba Gain feature (Gain preferred, else GainRaw).
+
+        Caller must already hold an open camera context.
+        """
+        try:
+            return self._camera.Gain
+        except AttributeError:
+            pass
+        try:
+            return self._camera.GainRaw
+        except AttributeError:
+            raise Exception(
+                'Camera has neither Gain nor GainRaw feature'
+            )
+
+    def _store_param_cache_unlocked(self):
+        """Refresh cached ROI/gain from live features (camera context open)."""
+        cache = {
+            'offset_x': int(self._camera.OffsetX.get()),
+            'offset_y': int(self._camera.OffsetY.get()),
+            'cols': int(self._camera.Width.get()),
+            'rows': int(self._camera.Height.get()),
+        }
+        try:
+            cache['gain'] = float(self._gain_feature().get())
+        except Exception:
+            pass
+        self._param_cache = cache
+
+    @synchronized("_mutex")
+    @withCamera()
+    def _apply_gain(self, gain_value):
+        feat = self._gain_feature()
+        feat.set(gain_value)
+        self._param_cache['gain'] = float(feat.get())
+        self._logger.notice('Gain set to %g' % self._param_cache['gain'])
+
+    def _set_gain(self, gain_value):
+        was_acquiring = self._pause_acquisition()
+        try:
+            self._apply_gain(gain_value)
+        finally:
+            self._resume_acquisition(was_acquiring)
+
+    @synchronized("_mutex")
+    @withCamera()
+    def _apply_roi_param(self, name, value):
+        """Write one ROI feature; camera context open, acquisition stopped."""
+        value = int(value)
+        if name == 'rows':
+            self._camera.Height.set(value)
+        elif name == 'cols':
+            self._camera.Width.set(value)
+        elif name == 'offset_x':
+            self._camera.OffsetX.set(value)
+        elif name == 'offset_y':
+            self._camera.OffsetY.set(value)
+        else:
+            raise Exception('Parameter %s is not valid' % str(name))
+        self._store_param_cache_unlocked()
+        self._logger.notice(
+            'ROI param %s set to %d (frame %dx%d @ (%d,%d))' % (
+                name, value,
+                self._param_cache['cols'],
+                self._param_cache['rows'],
+                self._param_cache['offset_x'],
+                self._param_cache['offset_y'],
+            )
+        )
+
+    def _set_roi_param(self, name, value):
+        """Set a single ROI parameter (Width/Height/OffsetX/OffsetY).
+
+        Callers must use a GenICam-safe order when changing several values,
+        typically: offset_x/y → 0, then cols/rows, then offset_x/y.
+        """
+        was_acquiring = self._pause_acquisition()
+        try:
+            self._apply_roi_param(name, value)
+        finally:
+            self._resume_acquisition(was_acquiring)
+
+    def set_roi(self, offset_x, offset_y, width, height):
+        """Set ROI atomically in one stop/start cycle (GenICam-safe order)."""
+        ox, oy = int(offset_x), int(offset_y)
+        w, h = int(width), int(height)
+        was_acquiring = self._pause_acquisition()
+        try:
+            self._apply_roi_atomic(ox, oy, w, h)
+        finally:
+            self._resume_acquisition(was_acquiring)
+
+    @synchronized("_mutex")
+    @withCamera()
+    def _apply_roi_atomic(self, ox, oy, w, h):
+        self._camera.OffsetX.set(0)
+        self._camera.OffsetY.set(0)
+        self._camera.Width.set(w)
+        self._camera.Height.set(h)
+        self._camera.OffsetX.set(ox)
+        self._camera.OffsetY.set(oy)
+        self._store_param_cache_unlocked()
+        self._logger.notice(
+            'ROI set to %dx%d @ (%d,%d)' % (w, h, ox, oy)
+        )
+
     @override
     def setParameter(self, name, value):
-        raise Exception('Parameter %s is not valid' % str(name))
+        if name == 'gain':
+            self._set_gain(float(value))
+        elif name in ('rows', 'cols', 'offset_x', 'offset_y'):
+            self._set_roi_param(name, value)
+        elif name == 'fps':
+            self.setFrameRate(float(value))
+        else:
+            raise Exception('Parameter %s is not valid' % str(name))
 
     @override
     def getParameters(self):
-        return {}
+        # Cached values — avoid opening a Vimba camera context on every
+        # status poll (that nested enter can hang while streaming).
+        return dict(self._param_cache)
 
 

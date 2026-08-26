@@ -79,6 +79,8 @@ class MyVimbaCamera(object):
             MyFeature('GevTimestampTickFrequency', int(10000)),
             MyFeature('SensorHeight', self.SENSOR_SIZE_H),
             MyFeature('SensorWidth', self.SENSOR_SIZE_W),
+            MyFeature('HeightMax', self.SENSOR_SIZE_H),
+            MyFeature('WidthMax', self.SENSOR_SIZE_W),
             MyFeature('SensorBits', 12),
             MyFeature('ExposureTimeAbs', 10000.),
             MyFeature('StreamBytesPerSecond', 1000000),
@@ -86,6 +88,7 @@ class MyVimbaCamera(object):
             MyFeature('OffsetY', 0),
             MyFeature('Height', 100),
             MyFeature('Width', 200),
+            MyFeature('Gain', 0.0),
             MyFeature('GVSPPacketSize', 1500),
         )
         for f in feats:
@@ -189,6 +192,9 @@ class MyVimbaCamera(object):
     def get_model(self):
         return self._deviceModelName
 
+    def get_name(self):
+        return self._deviceModelName
+
 
 class TestAvtCamera(unittest.TestCase):
 
@@ -233,6 +239,38 @@ class TestAvtCamera(unittest.TestCase):
         self.vimbacamera.disableBinning()
         self.vimbacamera.disableDecimation()
         self.assertRaises(Exception, self.avt.setBinning, 1)
+
+    def testSetParameterGain(self):
+        self.avt.setParameter('gain', 12.5)
+        self.assertAlmostEqual(12.5, self.vimbacamera.Gain.get())
+        self.assertAlmostEqual(12.5, self.avt.getParameters()['gain'])
+
+    def testSetParameterRoi(self):
+        # Safe GenICam order (same as cascading_gui apply_roi)
+        self.avt.setParameter('offset_x', 0)
+        self.avt.setParameter('offset_y', 0)
+        self.avt.setParameter('cols', 320)
+        self.avt.setParameter('rows', 256)
+        self.avt.setParameter('offset_x', 64)
+        self.avt.setParameter('offset_y', 32)
+        pars = self.avt.getParameters()
+        self.assertEqual(64, pars['offset_x'])
+        self.assertEqual(32, pars['offset_y'])
+        self.assertEqual(320, pars['cols'])
+        self.assertEqual(256, pars['rows'])
+        self.assertEqual(320, self.avt.cols())
+        self.assertEqual(256, self.avt.rows())
+
+    def testSetRoiAtomic(self):
+        self.avt.set_roi(80, 40, 400, 300)
+        pars = self.avt.getParameters()
+        self.assertEqual(80, pars['offset_x'])
+        self.assertEqual(40, pars['offset_y'])
+        self.assertEqual(400, pars['cols'])
+        self.assertEqual(300, pars['rows'])
+
+    def testSetParameterUnknownRaises(self):
+        self.assertRaises(Exception, self.avt.setParameter, 'nope', 1)
 
 
 if __name__ == "__main__":

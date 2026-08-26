@@ -126,9 +126,18 @@ class CameraController(Stepable,
     def _getCorrectedFrame(self, frame):
         if self._darkFrame is not None:
             with self._mutexDarkFrame:
+                # Subtract in signed ints and clip — uint16 wrap produced
+                # salt-and-pepper / near-65535 noise when frame < dark.
+                raw = frame.toNumpyArray().astype(np.int32)
+                dark = self._darkFrame.toNumpyArray().astype(np.int32)
+                if raw.shape != dark.shape:
+                    self._logger.warn(
+                        'Dark shape %s != frame shape %s; skipping subtract' % 
+                        (dark.shape, raw.shape))
+                    return frame
+                corrected = np.clip(raw - dark, 0, 65535).astype(np.uint16)
                 return CameraFrame.fromNumpyArray(
-                    frame.toNumpyArray() - self._darkFrame.toNumpyArray(),
-                    frame.counter())
+                    corrected, frame.counter())
         else:
             return frame
 
