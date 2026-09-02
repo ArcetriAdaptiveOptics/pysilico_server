@@ -201,18 +201,16 @@ class CblueOneCamera(AbstractCamera):
     @synchronized("_mutex")
     @override
     def setBinning(self, binning):
-        if self.device_model_name() == 'C-BLUE ONE 1.7 MP':
-            raise ValueError('C-Blue One 1.7 MP does not support set binning.')
-        else:
-            raise NotImplementedError(f'Set binning not implemented for camera {self.device_model_name()}')
+        # Hardware binning is fixed at 1. Do not raise: status/setBinning
+        # RPC would otherwise kill the camera process (unhandled exception).
+        if int(binning) != 1:
+            self._logger.warn(
+                f'C-BLUE ignores setBinning({binning}); hardware binning is 1')
 
     @synchronized("_mutex")
     @override
     def getBinning(self):
-        if self.device_model_name() == 'C-BLUE ONE 1.7 MP':
-            return 1
-        else:
-            raise NotImplementedError(f'Get binning not implemented for camera {self.device_model_name()}')
+        return 1
 
     @stop_start
     def set_conversion_efficiency(self, low_high_gain):
